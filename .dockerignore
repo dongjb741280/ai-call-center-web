@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.git/
+.gitlab-ci.yml
+README.md
+README-FRONTEND.md
+start.sh
+.DS_Store
+*.log

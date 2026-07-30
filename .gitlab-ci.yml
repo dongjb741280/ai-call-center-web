@@ -1,0 +1,137 @@
+# =============================================================================
+# AI呼叫中心前台 CI/CD Pipeline
+# GitLab Runner + npm + SonarQube + Docker + Nexus + Harbor
+# =============================================================================
+
+stages:
+  - compile
+  - test
+  - static-analysis
+  - build
+  - docker-build
+  - publish
+
+# ---------------------------------------------------------------------------
+# 全局变量
+# ---------------------------------------------------------------------------
+variables:
+  DOCKER_REGISTRY: "localhost:8444"
+  DOCKER_NAMESPACE: "voxai"
+  DOCKER_IMAGE: "ai-call-center-web"
+
+# ---------------------------------------------------------------------------
+# npm 缓存
+# ---------------------------------------------------------------------------
+cache:
+  key: npm-cache
+  paths:
+    - node_modules/
+
+# ---------------------------------------------------------------------------
+# Stage 1: 依赖安装 + 编译检查
+# ---------------------------------------------------------------------------
+npm-install:
+  image: node:20-alpine
+  stage: compile
+  script:
+    - npm ci
+    - npm run lint || true
+  artifacts:
+    paths:
+      - node_modules/
+    expire_in: 30min
+
+# ---------------------------------------------------------------------------
+# Stage 2: 测试（预留）
+# ---------------------------------------------------------------------------
+unit-test:
+  image: node:20-alpine
+  stage: test
+  needs: ["npm-install"]
+  script:
+    - echo "暂无前端单元测试，跳过"
+  allow_failure: true
+
+# ---------------------------------------------------------------------------
+# Stage 3: SonarQube 代码扫描
+# ---------------------------------------------------------------------------
+sonarqube:
+  image: sonarsource/sonar-scanner-cli:latest
+  stage: static-analysis
+  needs: ["npm-install"]
+  script:
+    - sonar-scanner
+      -Dsonar.host.url=$SONAR_HOST_URL
+      -Dsonar.login=$SONAR_TOKEN
+      -Dsonar.projectKey=ai-call-center-web
+      -Dsonar.projectName=AI呼叫中心前台
+      -Dsonar.sources=src
+      -Dsonar.sourceEncoding=UTF-8
+      -Dsonar.exclusions=**/node_modules/**
+  only:
+    - main
+    - develop
+    - merge_requests
+  except:
+    variables:
+      - $SONAR_HOST_URL == null
+      - $SONAR_TOKEN == null
+
+# ---------------------------------------------------------------------------
+# Stage 4: 生产构建
+# ---------------------------------------------------------------------------
+npm-build:
+  image: node:20-alpine
+  stage: build
+  needs: ["npm-install"]
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1h
+
+# ---------------------------------------------------------------------------
+# Stage 5: Docker 镜像构建 & 推送到 Harbor
+# ---------------------------------------------------------------------------
+docker-build:
+  image: docker:latest
+  stage: docker-build
+  needs: ["npm-build"]
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASS" "$DOCKER_REGISTRY" || true
+  script:
+    - docker build -t ${DOCKER_REGISTRY}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE}:${CI_COMMIT_SHORT_SHA} .
+    - docker tag ${DOCKER_REGISTRY}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE}:${CI_COMMIT_SHORT_SHA} ${DOCKER_REGISTRY}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE}:latest
+    - docker push ${DOCKER_REGISTRY}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE}:${CI_COMMIT_SHORT_SHA}
+    - docker push ${DOCKER_REGISTRY}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE}:latest
+  only:
+    - main
+    - develop
+    - tags
+  except:
+    variables:
+      - $DOCKER_REGISTRY_USER == null
+      - $DOCKER_REGISTRY_PASS == null
+
+# ---------------------------------------------------------------------------
+# Stage 6: Nexus npm 发布（可选，手动触发）
+# ---------------------------------------------------------------------------
+nexus-publish:
+  image: node:20-alpine
+  stage: publish
+  needs: ["npm-build"]
+  when: manual
+  script:
+    - echo "registry=http://localhost:8090/repository/npm-local/" > .npmrc
+    - echo "//localhost:8090/repository/npm-local/:_auth=$(echo -n $NEXUS_USER:$NEXUS_PASSWORD | base64)" >> .npmrc
+    - npm publish --registry=http://localhost:8090/repository/npm-local/
+  only:
+    - tags
+  except:
+    variables:
+      - $NEXUS_URL == null
+      - $NEXUS_USER == null
+      - $NEXUS_PASSWORD == null
