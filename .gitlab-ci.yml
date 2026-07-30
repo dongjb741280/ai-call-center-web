@@ -131,12 +131,13 @@ nexus-publish:
   stage: publish
   needs: ["npm-build"]
   when: manual
+  allow_failure: true
   script:
     - echo "registry=http://localhost:8090/repository/npm-local/" > .npmrc
     - echo "//localhost:8090/repository/npm-local/:_auth=$(echo -n $NEXUS_USER:$NEXUS_PASSWORD | base64)" >> .npmrc
     - npm publish --registry=http://localhost:8090/repository/npm-local/
   only:
-    - tags
+    - main
   except:
     variables:
       - $NEXUS_URL == null
