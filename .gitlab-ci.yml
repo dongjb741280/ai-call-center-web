@@ -49,8 +49,15 @@ unit-test:
   stage: test
   needs: ["npm-install"]
   script:
-    - echo "暂无前端单元测试，跳过"
-  allow_failure: true
+    - npm run test
+  coverage: '/All files[^|]*\|[^|]*\s+([\d.]+)/'
+  artifacts:
+    when: always
+    reports:
+      junit: results.xml
+    paths:
+      - results.xml
+    expire_in: 7d
 
 # ---------------------------------------------------------------------------
 # Stage 3: SonarQube 代码扫描
