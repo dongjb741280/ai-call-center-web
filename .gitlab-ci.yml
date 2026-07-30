@@ -96,13 +96,12 @@ npm-build:
 # Stage 5: Docker 镜像构建 & 推送到 Harbor
 # ---------------------------------------------------------------------------
 docker-build:
-  image: docker:latest
   stage: docker-build
   needs: ["npm-build"]
-  services:
-    - docker:dind
+  variables:
+    DOCKER_HOST: "unix:///Users/dongjb/.orbstack/run/docker.sock"
   before_script:
-    - docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASS" "$DOCKER_REGISTRY" || true
+    - echo "$DOCKER_REGISTRY_PASS" | docker login "http://$DOCKER_REGISTRY" -u "$DOCKER_REGISTRY_USER" --password-stdin || true
   script:
     - docker build -t ${DOCKER_REGISTRY}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE}:${CI_COMMIT_SHORT_SHA} .
     - docker tag ${DOCKER_REGISTRY}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE}:${CI_COMMIT_SHORT_SHA} ${DOCKER_REGISTRY}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE}:latest
