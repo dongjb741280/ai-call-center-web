@@ -102,6 +102,13 @@ docker-build:
     DOCKER_HOST: "unix:///Users/dongjb/.orbstack/run/docker.sock"
   before_script:
     - echo "$DOCKER_REGISTRY_PASS" | docker login "http://$DOCKER_REGISTRY" -u "$DOCKER_REGISTRY_USER" --password-stdin || true
+    - docker pull node:20-alpine 2>/dev/null || true
+    - docker pull nginx:alpine 2>/dev/null || true
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - unknown_failure
   script:
     - docker build -t ${DOCKER_REGISTRY}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE}:${CI_COMMIT_SHORT_SHA} .
     - docker tag ${DOCKER_REGISTRY}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE}:${CI_COMMIT_SHORT_SHA} ${DOCKER_REGISTRY}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE}:latest
