@@ -56,9 +56,10 @@ unit-test:
 # Stage 3: SonarQube 代码扫描
 # ---------------------------------------------------------------------------
 sonarqube:
-  image: sonarsource/sonar-scanner-cli:latest
   stage: static-analysis
   needs: ["npm-install"]
+  before_script:
+    - npm install -g sonar-scanner 2>/dev/null || true
   script:
     - sonar-scanner
       -Dsonar.host.url=$SONAR_HOST_URL
