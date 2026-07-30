@@ -249,5 +249,3 @@ CMD ["nginx", "-g", "daemon off;"]
 ## 许可证
 
 MIT License
-
-
