@@ -4,8 +4,8 @@
     <header class="layout-header">
       <div class="header-left">
         <el-icon class="menu-toggle" @click="toggleSidebar">
-          <Fold v-if="!collapsed" />
-          <Expand v-else />
+          <DArrowLeft v-if="!collapsed" />
+          <DArrowRight v-else />
         </el-icon>
         <div class="brand">
           <img src="/logo.svg" class="brand-logo" alt="AI呼叫中心" />
@@ -294,7 +294,7 @@ const handleCommand = async (command) => {
 }
 
 .menu-toggle {
-  font-size: 20px;
+  font-size: 22px;
   cursor: pointer;
   color: var(--text-regular);
   padding: 6px;
