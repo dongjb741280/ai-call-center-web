@@ -69,6 +69,7 @@
 
       <!-- 内容区域 -->
       <main class="layout-content">
+        <PageBreadcrumb />
         <router-view />
       </main>
     </div>
@@ -131,6 +132,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { updateUser, uploadUserAvatar } from '@/api/admin'
+import PageBreadcrumb from '@/components/PageBreadcrumb.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -452,5 +454,4 @@ const handleCommand = async (command) => {
   }
 }
 </style>
-
 

@@ -2,6 +2,8 @@
 
 基于 Vue 3 + Element Plus 构建的现代化呼叫中心管理界面。
 
+已融合连续号码批量创建 SIP 分机、网关地址分项配置和面包屑导航。功能对比、使用步骤及配套后端修复见 [FreeSWITCH 管理能力融合说明](docs/freeswitch-admin-integration.md)。
+
 ## 功能特性
 
 ### 🏠 仪表板
