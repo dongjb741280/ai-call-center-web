@@ -643,14 +643,11 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-header h2 { font-size: 20px; font-weight: 600; color: #303133; margin: 0; }
-.search-form { margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; }
 .pagination { margin-top: 20px; display: flex; justify-content: center; }
-.rate-high { color: #67c23a; font-weight: 600; }
-.rate-mid { color: #e6a23c; font-weight: 600; }
-.rate-low { color: #f56c6c; font-weight: 600; }
-.contact-search-form { padding: 12px 16px; background: #f8f9fa; border-radius: 6px; margin-bottom: 4px; }
+.rate-high { color: var(--color-success); font-weight: 600; }
+.rate-mid { color: var(--color-warning); font-weight: 600; }
+.rate-low { color: var(--color-danger); font-weight: 600; }
+.contact-search-form { padding: 12px 16px; background: var(--bg-body); border-radius: 6px; margin-bottom: 4px; }
 .task-detail-desc { margin-top: 4px; }
-.dialog-section-title { font-size: 14px; font-weight: 600; color: #303133; padding-left: 10px; border-left: 3px solid #409eff; margin-bottom: 12px; line-height: 1.3; }
+.dialog-section-title { font-size: 14px; font-weight: 600; color: var(--text-primary); padding-left: 10px; border-left: 3px solid var(--color-primary); margin-bottom: 12px; line-height: 1.3; }
 </style>

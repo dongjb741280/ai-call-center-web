@@ -365,9 +365,6 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-header h2 { font-size: 20px; font-weight: 600; color: #303133; margin: 0; }
-.search-form { margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; }
 .pagination { margin-top: 20px; display: flex; justify-content: center; }
 
 /* Custom Transfer Styles */
@@ -378,7 +375,7 @@ onMounted(loadData)
   width: 100%;
 }
 .transfer-panel {
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   width: 260px;
   background: #fff;
@@ -386,9 +383,9 @@ onMounted(loadData)
   flex-direction: column;
 }
 .transfer-header {
-  background-color: #f5f7fa;
+  background-color: var(--bg-body);
   padding: 8px 12px;
-  border-bottom: 1px solid #dcdfe6;
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -396,12 +393,12 @@ onMounted(loadData)
 .panel-title {
   font-weight: 500;
   font-size: 14px;
-  color: #303133;
+  color: var(--text-primary);
   flex-grow: 1;
 }
 .panel-count {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-secondary);
 }
 .transfer-search {
   padding: 10px 12px 6px;
@@ -420,7 +417,7 @@ onMounted(loadData)
 }
 .empty-text {
   text-align: center;
-  color: #c0c4cc;
+  color: var(--text-placeholder);
   font-size: 13px;
   padding-top: 40px;
 }
@@ -448,9 +445,9 @@ onMounted(loadData)
   border-color: #66b1ff;
 }
 .transfer-btn.is-disabled, .transfer-btn.is-disabled:hover {
-  background-color: #f5f7fa;
-  border-color: #e4e7ed;
-  color: #c0c4cc;
+  background-color: var(--bg-body);
+  border-color: var(--border-color);
+  color: var(--text-placeholder);
 }
 </style>
 

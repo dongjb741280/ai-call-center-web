@@ -42,7 +42,7 @@
           router
           background-color="transparent"
           text-color="#94a3b8"
-          active-text-color="#a5b4fc"
+          active-text-color="#60a5fa"
         >
           <template v-for="route in menuRoutes" :key="route.path">
             <el-sub-menu v-if="route.children && route.children.length > 0" :index="route.path">
@@ -426,9 +426,9 @@ const handleCommand = async (command) => {
 
 :deep(.el-menu-item.is-active) {
   background: var(--bg-sidebar-active) !important;
-  color: var(--color-primary-light) !important;
+  color: var(--color-primary-lighter) !important;
   font-weight: 600;
-  border-right: 2px solid var(--color-primary);
+  border-right: 2px solid var(--color-primary-light);
 }
 
 :deep(.el-sub-menu.is-active > .el-sub-menu__title) {

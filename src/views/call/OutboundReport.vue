@@ -139,7 +139,7 @@
             <el-descriptions-item label="媒体地址" :span="2">{{ detail.mediaHost || '-' }}</el-descriptions-item>
             <el-descriptions-item label="cti地址" :span="2">{{ detail.ctiHost || '-' }}</el-descriptions-item>
             <el-descriptions-item label="随路数据" :span="2">
-              <span style="word-break:break-all;font-size:12px;color:#909399">{{ detail.followData || '-' }}</span>
+              <span style="word-break:break-all;font-size:12px;color:var(--text-secondary)">{{ detail.followData || '-' }}</span>
             </el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
@@ -322,13 +322,10 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-header h2 { font-size: 20px; font-weight: 600; color: #303133; margin: 0; }
-.search-form { margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; }
 .table-wrapper { overflow-x: auto; }
 .pagination { margin-top: 20px; display: flex; justify-content: center; }
-.device-card { margin-bottom: 16px; border: 1px solid #ebeef5; border-radius: 8px; overflow: hidden; }
-.device-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #f5f7fa; border-bottom: 1px solid #ebeef5; }
-.device-label { font-size: 14px; font-weight: 600; color: #303133; }
-.device-type-tag { font-size: 12px; padding: 2px 10px; border-radius: 4px; color: #fff; background: #409eff; }
+.device-card { margin-bottom: 16px; border: 1px solid var(--border-color-light); border-radius: 8px; overflow: hidden; }
+.device-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--bg-body); border-bottom: 1px solid var(--border-color-light); }
+.device-label { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.device-type-tag { font-size: 12px; padding: 2px 10px; border-radius: 4px; color: #fff; background: var(--color-primary); }
 </style>

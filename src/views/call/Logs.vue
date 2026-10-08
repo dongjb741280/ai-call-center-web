@@ -340,7 +340,7 @@ onMounted(() => {
 .page-header h2 {
   font-size: 20px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -352,7 +352,7 @@ onMounted(() => {
 .search-form {
   margin-bottom: 20px;
   padding: 20px;
-  background: #f8f9fa;
+  background: var(--bg-body);
   border-radius: 8px;
 }
 

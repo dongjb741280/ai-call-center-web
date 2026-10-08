@@ -4,38 +4,54 @@
       <h2>预测外呼</h2>
     </div>
 
-    <el-form :model="searchForm" inline class="search-form">
-      <el-form-item label="任务id">
-        <el-input v-model="searchForm.taskId" placeholder="任务id" clearable />
-      </el-form-item>
-      <el-form-item label="callId">
-        <el-input v-model="searchForm.callId" placeholder="callId" clearable />
-      </el-form-item>
-      <el-form-item label="被叫号码">
-        <el-input v-model="searchForm.called" placeholder="被叫号码" clearable />
-      </el-form-item>
-      <el-form-item label="呼叫结果">
-        <el-input v-model="searchForm.callResult" placeholder="呼叫结果" clearable />
-      </el-form-item>
-      <el-form-item label="坐席">
-        <el-input v-model="searchForm.agentKey" placeholder="坐席" clearable />
-      </el-form-item>
-      <el-form-item label="时间">
-        <el-date-picker
-          v-model="searchForm.timeRange"
-          type="datetimerange"
-          range-separator="—"
-          start-placeholder="请选择开始时间"
-          end-placeholder="请选择结束时间"
-          format="YYYY-MM-DD HH:mm:ss"
-          value-format="x"
-          clearable
-        />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="handleSearch"><el-icon><Search /></el-icon>搜索</el-button>
-        <el-button @click="handleReset"><el-icon><Refresh /></el-icon>重置</el-button>
-      </el-form-item>
+    <el-form :model="searchForm" label-width="80px" class="search-form">
+      <el-row :gutter="16">
+        <el-col :xs="24" :sm="12" :md="6">
+          <el-form-item label="任务id">
+            <el-input v-model="searchForm.taskId" placeholder="任务id" clearable />
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="6">
+          <el-form-item label="callId">
+            <el-input v-model="searchForm.callId" placeholder="callId" clearable />
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="6">
+          <el-form-item label="被叫号码">
+            <el-input v-model="searchForm.called" placeholder="被叫号码" clearable />
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="6">
+          <el-form-item label="呼叫结果">
+            <el-input v-model="searchForm.callResult" placeholder="呼叫结果" clearable />
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="6">
+          <el-form-item label="坐席">
+            <el-input v-model="searchForm.agentKey" placeholder="坐席" clearable />
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="12">
+          <el-form-item label="时间">
+            <el-date-picker
+              v-model="searchForm.timeRange"
+              type="datetimerange"
+              range-separator="—"
+              start-placeholder="请选择开始时间"
+              end-placeholder="请选择结束时间"
+              format="YYYY-MM-DD HH:mm:ss"
+              value-format="x"
+              clearable
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="6">
+          <el-form-item>
+            <el-button type="primary" @click="handleSearch"><el-icon><Search /></el-icon>搜索</el-button>
+            <el-button @click="handleReset"><el-icon><Refresh /></el-icon>重置</el-button>
+          </el-form-item>
+        </el-col>
+      </el-row>
     </el-form>
 
     <div class="table-wrapper">
@@ -283,13 +299,13 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-header h2 { font-size: 20px; font-weight: 600; color: #303133; margin: 0; }
-.search-form { margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; }
+.search-form :deep(.el-form-item) { margin-bottom: 16px; }
+.search-form :deep(.el-input),
+.search-form :deep(.el-date-editor) { width: 100%; }
 .table-wrapper { overflow-x: auto; }
 .pagination { margin-top: 20px; display: flex; justify-content: center; }
-.device-card { margin-bottom: 16px; border: 1px solid #ebeef5; border-radius: 8px; overflow: hidden; }
-.device-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #f5f7fa; border-bottom: 1px solid #ebeef5; }
-.device-label { font-size: 14px; font-weight: 600; color: #303133; }
-.device-type-tag { font-size: 12px; padding: 2px 10px; border-radius: 4px; color: #fff; background: #409eff; }
+.device-card { margin-bottom: 16px; border: 1px solid var(--border-color-light); border-radius: 8px; overflow: hidden; }
+.device-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--bg-body); border-bottom: 1px solid var(--border-color-light); }
+.device-label { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.device-type-tag { font-size: 12px; padding: 2px 10px; border-radius: 4px; color: #fff; background: var(--color-primary); }
 </style>

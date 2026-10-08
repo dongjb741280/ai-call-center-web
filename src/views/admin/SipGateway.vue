@@ -210,9 +210,6 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-header h2 { font-size: 20px; font-weight: 600; color: #303133; margin: 0; }
-.search-form { margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; }
 .pagination { margin-top: 20px; display: flex; justify-content: center; }
 .form-help { color: var(--text-secondary); font-size: 12px; }
 .address-preview { overflow-wrap: anywhere; }

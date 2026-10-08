@@ -107,37 +107,35 @@ onUnmounted(() => { clearInterval(timer) })
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-header h2 { font-size: 20px; font-weight: 600; color: #303133; margin: 0; }
 .header-right { display: flex; align-items: center; gap: 12px; }
-.refresh-time { font-size: 13px; color: #909399; }
+.refresh-time { font-size: 13px; color: var(--text-secondary); }
 
-.stats-bar { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #fff; border-radius: 8px; border: 1px solid #ebeef5; margin-bottom: 16px; font-size: 14px; color: #606266; }
+.stats-bar { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #fff; border-radius: 8px; border: 1px solid var(--border-color-light); margin-bottom: 16px; font-size: 14px; color: var(--text-regular); }
 .stat-item strong { font-size: 18px; margin-left: 4px; }
-.stat-item.outbound strong { color: #409eff; }
-.stat-item.inbound strong { color: #67c23a; }
-.stat-sep { color: #dcdfe6; }
+.stat-item.outbound strong { color: var(--color-primary); }
+.stat-item.inbound strong { color: var(--color-success); }
+.stat-sep { color: var(--border-color); }
 
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; min-height: 200px; }
 
-.call-card { padding: 16px 20px; border-radius: 8px; background: #fff; border: 1px solid #ebeef5; transition: box-shadow 0.2s; }
+.call-card { padding: 16px 20px; border-radius: 8px; background: #fff; border: 1px solid var(--border-color-light); transition: box-shadow 0.2s; }
 .call-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-.card-active { border-left: 4px solid #67c23a; }
-.card-ringing { border-left: 4px solid #e6a23c; }
-.card-ended { border-left: 4px solid #909399; }
+.card-active { border-left: 4px solid var(--color-success); }
+.card-ringing { border-left: 4px solid var(--color-warning); }
+.card-ended { border-left: 4px solid var(--text-secondary); }
 
 .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.card-direction { font-size: 12px; padding: 1px 8px; border-radius: 4px; color: #fff; background: #409eff; }
-.card-callid { font-size: 12px; color: #909399; font-family: monospace; }
+.card-direction { font-size: 12px; padding: 1px 8px; border-radius: 4px; color: #fff; background: var(--color-primary); }
+.card-callid { font-size: 12px; color: var(--text-secondary); font-family: monospace; }
 
 .card-numbers { margin-bottom: 10px; }
 .caller-line, .called-line { display: flex; gap: 8px; font-size: 13px; line-height: 1.8; }
-.num-label { color: #909399; min-width: 32px; }
-.num-value { color: #303133; font-weight: 500; }
+.num-label { color: var(--text-secondary); min-width: 32px; }
+.num-value { color: var(--text-primary); font-weight: 500; }
 
-.card-info { font-size: 12px; color: #909399; }
+.card-info { font-size: 12px; color: var(--text-secondary); }
 .info-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
-.card-follow { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ebeef5; font-size: 11px; color: #c0c4cc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-follow { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color-light); font-size: 11px; color: var(--text-placeholder); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .pagination { margin-top: 20px; display: flex; justify-content: center; }
 </style>

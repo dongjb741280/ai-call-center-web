@@ -108,7 +108,7 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #312e81 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, var(--color-primary-dark) 100%);
   position: relative;
   overflow: hidden;
   padding: 20px;
@@ -129,7 +129,7 @@ const handleLogin = async () => {
 .shape-1 {
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, #818cf8, transparent 70%);
+  background: radial-gradient(circle, var(--color-primary-lighter), transparent 70%);
   top: -200px;
   right: -150px;
 }
@@ -137,7 +137,7 @@ const handleLogin = async () => {
 .shape-2 {
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, #6366f1, transparent 70%);
+  background: radial-gradient(circle, var(--color-primary-light), transparent 70%);
   bottom: -150px;
   left: -100px;
 }
@@ -183,7 +183,7 @@ const handleLogin = async () => {
   color: #fff;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
   border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 8px 20px rgba(30, 64, 175, 0.35);
 }
 
 .login-header h1 {

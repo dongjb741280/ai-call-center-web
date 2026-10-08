@@ -285,7 +285,7 @@
               <template #default="{ row }">{{ row.level || row.levelValue || '-' }}</template>
             </el-table-column>
           </el-table>
-          <div v-if="groupTableData.length === 0" style="color:#909399;padding:12px 0">暂无数据</div>
+          <div v-if="groupTableData.length === 0" style="color:var(--text-secondary);padding:12px 0">暂无数据</div>
         </el-card>
 
         <el-card shadow="never" class="detail-card">
@@ -305,7 +305,7 @@
               <template #default="{ row }">{{ row.shareValue ?? row.rankValue ?? '-' }}</template>
             </el-table-column>
           </el-table>
-          <div v-if="skillTableData.length === 0" style="color:#909399;padding:12px 0">暂无数据</div>
+          <div v-if="skillTableData.length === 0" style="color:var(--text-secondary);padding:12px 0">暂无数据</div>
         </el-card>
       </div>
       <el-empty v-else description="暂无详情数据" />
@@ -527,9 +527,6 @@ onMounted(() => { loadData(); loadGroups() })
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .header-actions { display: flex; gap: 8px; }
-.page-header h2 { font-size: 20px; font-weight: 600; color: #303133; margin: 0; }
-.search-form { margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; }
 .pagination { margin-top: 20px; display: flex; justify-content: center; }
 </style>

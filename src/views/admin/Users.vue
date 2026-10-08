@@ -510,14 +510,14 @@ function formatTimestamp(val) {
 .page-header h2 {
   font-size: 20px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .search-form {
   margin-bottom: 20px;
   padding: 20px;
-  background: #f8f9fa;
+  background: var(--bg-body);
   border-radius: 8px;
 }
 
@@ -547,21 +547,21 @@ function formatTimestamp(val) {
     
     .el-form-item__label {
       font-weight: 500;
-      color: #303133;
+      color: var(--text-primary);
     }
     
     .el-input {
       .el-input__wrapper {
         border-radius: 8px;
-        box-shadow: 0 0 0 1px #dcdfe6;
+        box-shadow: 0 0 0 1px var(--border-color);
         transition: all 0.3s;
         
         &:hover {
-          box-shadow: 0 0 0 1px #c0c4cc;
+          box-shadow: 0 0 0 1px var(--text-placeholder);
         }
         
         &.is-focus {
-          box-shadow: 0 0 0 1px #409eff;
+          box-shadow: 0 0 0 1px var(--color-primary);
         }
       }
     }
@@ -581,7 +581,7 @@ function formatTimestamp(val) {
   
   .el-form-item--required .el-form-item__label::before {
     content: '*';
-    color: #f56c6c;
+    color: var(--color-danger);
     margin-right: 4px;
   }
 }

@@ -27,7 +27,7 @@
     <!-- 统计卡片 -->
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-icon" style="background: #eef2ff; color: #6366f1;">
+        <div class="stat-icon" style="background: var(--color-primary-bg); color: var(--color-primary);">
           <el-icon size="24"><PhoneFilled /></el-icon>
         </div>
         <div class="stat-body">
@@ -36,7 +36,7 @@
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon" style="background: #ecfdf5; color: #10b981;">
+        <div class="stat-icon" style="background: var(--color-success-bg); color: var(--color-success);">
           <el-icon size="24"><PhoneFilled /></el-icon>
         </div>
         <div class="stat-body">
@@ -45,7 +45,7 @@
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon" style="background: #eff6ff; color: #3b82f6;">
+        <div class="stat-icon" style="background: var(--color-info-bg); color: var(--color-info);">
           <el-icon size="24"><User /></el-icon>
         </div>
         <div class="stat-body">
@@ -54,7 +54,7 @@
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon" style="background: #fffbeb; color: #f59e0b;">
+        <div class="stat-icon" style="background: var(--color-warning-bg); color: var(--color-warning);">
           <el-icon size="24"><UserFilled /></el-icon>
         </div>
         <div class="stat-body">
@@ -135,7 +135,7 @@ const agentStackBarOption = ref({
   xAxis: { type: 'value', axisLine: { lineStyle: { color: '#e2e8f0' } }, axisLabel: { color: '#94a3b8' } },
   yAxis: { type: 'category', data: ['1001@test'], axisLine: { lineStyle: { color: '#e2e8f0' } }, axisLabel: { color: '#94a3b8' } },
   series: [
-    { name: 'loginTime', type: 'bar', stack: 'total', emphasis: { focus: 'series' }, data: [726], itemStyle: { color: '#6366f1', borderRadius: [0, 4, 4, 0] } },
+    { name: 'loginTime', type: 'bar', stack: 'total', emphasis: { focus: 'series' }, data: [726], itemStyle: { color: '#1e40af', borderRadius: [0, 4, 4, 0] } },
     { name: 'readyTime', type: 'bar', stack: 'total', emphasis: { focus: 'series' }, data: [94], itemStyle: { color: '#10b981' } },
     { name: 'talkTime', type: 'bar', stack: 'total', emphasis: { focus: 'series' }, data: [2], itemStyle: { color: '#f59e0b' } },
     { name: 'calloutCnt', type: 'bar', stack: 'total', emphasis: { focus: 'series' }, data: [1], itemStyle: { color: '#ef4444' } },
@@ -151,7 +151,7 @@ const companyHourlyLineOption = ref({
   xAxis: { type: 'category', boundaryGap: false, data: ['03:00','04:00','05:00','06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00'], axisLine: { lineStyle: { color: '#e2e8f0' } }, axisLabel: { color: '#94a3b8' } },
   yAxis: { type: 'value', axisLine: { lineStyle: { color: '#e2e8f0' } }, axisLabel: { color: '#94a3b8' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
   series: [
-    { name: 'agentCnt', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, data: [1,1,1,1,1,1,1,1,1,1,1,1], itemStyle: { color: '#6366f1' }, lineStyle: { width: 3 }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(99,102,241,0.15)' }, { offset: 1, color: 'rgba(99,102,241,0)' }] } } },
+    { name: 'agentCnt', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, data: [1,1,1,1,1,1,1,1,1,1,1,1], itemStyle: { color: '#1e40af' }, lineStyle: { width: 3 }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(30,64,175,0.15)' }, { offset: 1, color: 'rgba(30,64,175,0)' }] } } },
     { name: 'callinCnt', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, data: [0,0,0,0,0,0,2,0,0,3,0,0], itemStyle: { color: '#10b981' }, lineStyle: { width: 3 }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(16,185,129,0.15)' }, { offset: 1, color: 'rgba(16,185,129,0)' }] } } },
     { name: 'calloutCnt', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, data: [0,0,0,0,0,0,0,0,0,2,0,1], itemStyle: { color: '#f59e0b' }, lineStyle: { width: 3 }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(245,158,11,0.15)' }, { offset: 1, color: 'rgba(245,158,11,0)' }] } } }
   ]

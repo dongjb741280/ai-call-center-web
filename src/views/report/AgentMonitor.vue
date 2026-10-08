@@ -92,54 +92,51 @@ onUnmounted(() => { clearInterval(timer) })
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-header h2 { font-size: 20px; font-weight: 600; color: #303133; margin: 0; }
 .header-right { display: flex; align-items: center; gap: 12px; }
-.refresh-time { font-size: 13px; color: #909399; }
-.search-form { margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; }
+.refresh-time { font-size: 13px; color: var(--text-secondary); }
 
-.stats-bar { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #fff; border-radius: 8px; border: 1px solid #ebeef5; margin-bottom: 16px; font-size: 14px; color: #606266; }
+.stats-bar { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #fff; border-radius: 8px; border: 1px solid var(--border-color-light); margin-bottom: 16px; font-size: 14px; color: var(--text-regular); }
 .stat-item strong { font-size: 18px; margin-left: 4px; }
-.stat-item.ready strong { color: #67c23a; }
-.stat-item.notready strong { color: #f56c6c; }
-.stat-item.outcall strong { color: #e6a23c; }
-.stat-item.logout strong { color: #909399; }
-.stat-sep { color: #dcdfe6; }
+.stat-item.ready strong { color: var(--color-success); }
+.stat-item.notready strong { color: var(--color-danger); }
+.stat-item.outcall strong { color: var(--color-warning); }
+.stat-item.logout strong { color: var(--text-secondary); }
+.stat-sep { color: var(--border-color); }
 
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; min-height: 200px; }
 
 .agent-card {
   padding: 16px 20px;
   border-radius: 8px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--border-color-light);
   background: #fff;
   transition: box-shadow 0.2s;
 }
 .agent-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
 
-.card-ready { border-left: 4px solid #67c23a; }
-.card-notready { border-left: 4px solid #f56c6c; }
-.card-login { border-left: 4px solid #409eff; }
-.card-logout { border-left: 4px solid #909399; }
-.card-outcall { border-left: 4px solid #e6a23c; }
-.card-default { border-left: 4px solid #dcdfe6; }
+.card-ready { border-left: 4px solid var(--color-success); }
+.card-notready { border-left: 4px solid var(--color-danger); }
+.card-login { border-left: 4px solid var(--color-primary); }
+.card-logout { border-left: 4px solid var(--text-secondary); }
+.card-outcall { border-left: 4px solid var(--color-warning); }
+.card-default { border-left: 4px solid var(--border-color); }
 
 .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.card-agent-key { font-size: 15px; font-weight: 600; color: #303133; }
+.card-agent-key { font-size: 15px; font-weight: 600; color: var(--text-primary); }
 .card-type { font-size: 12px; padding: 1px 8px; border-radius: 4px; color: #fff; }
-.card-type.webrtc { background: #409eff; }
-.card-type.sip { background: #909399; }
+.card-type.webrtc { background: var(--color-primary); }
+.card-type.sip { background: var(--text-secondary); }
 
 .card-state { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
 .state-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.dot-ready { background: #67c23a; box-shadow: 0 0 6px rgba(103,194,58,0.5); }
-.dot-notready { background: #f56c6c; box-shadow: 0 0 6px rgba(245,108,108,0.5); }
-.dot-login { background: #409eff; box-shadow: 0 0 6px rgba(64,158,255,0.5); }
-.dot-logout { background: #909399; }
-.dot-outcall { background: #e6a23c; box-shadow: 0 0 6px rgba(230,162,60,0.5); }
-.dot-default { background: #c0c4cc; }
-.state-label { font-size: 14px; color: #606266; font-weight: 500; }
+.dot-ready { background: var(--color-success); box-shadow: 0 0 6px rgba(103,194,58,0.5); }
+.dot-notready { background: var(--color-danger); box-shadow: 0 0 6px rgba(245,108,108,0.5); }
+.dot-login { background: var(--color-primary); box-shadow: 0 0 6px rgba(64,158,255,0.5); }
+.dot-logout { background: var(--text-secondary); }
+.dot-outcall { background: var(--color-warning); box-shadow: 0 0 6px rgba(230,162,60,0.5); }
+.dot-default { background: var(--text-placeholder); }
+.state-label { font-size: 14px; color: var(--text-regular); font-weight: 500; }
 
-.card-time { font-size: 12px; color: #909399; margin-bottom: 4px; }
-.card-name { font-size: 13px; color: #606266; }
+.card-time { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.card-name { font-size: 13px; color: var(--text-regular); }
 </style>

@@ -251,8 +251,6 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-header h2 { font-size: 20px; font-weight: 600; color: #303133; margin: 0; }
 .header-actions { display: flex; gap: 8px; }
 
 .skill-layout { display: flex; gap: 16px; align-items: flex-start; }
@@ -261,18 +259,18 @@ onMounted(loadData)
 
 .group-block { margin-bottom: 8px; }
 .group-title { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f0f2f5; border-radius: 4px 4px 0 0; font-weight: 600; font-size: 14px; }
-.skill-items { border: 1px solid #ebeef5; border-top: none; border-radius: 0 0 4px 4px; }
+.skill-items { border: 1px solid var(--border-color-light); border-top: none; border-radius: 0 0 4px 4px; }
 .skill-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
 .skill-row:last-child { border-bottom: none; }
-.skill-row:hover { background: #f5f7fa; }
-.skill-row.active { background: #ecf5ff; color: #409EFF; }
+.skill-row:hover { background: var(--bg-body); }
+.skill-row.active { background: #ecf5ff; color: var(--color-primary); }
 .skill-name { font-size: 13px; }
 .skill-actions { display: flex; gap: 4px; flex-shrink: 0; }
-.empty-text { color: #909399; padding: 12px 0; text-align: center; font-size: 13px; }
+.empty-text { color: var(--text-secondary); padding: 12px 0; text-align: center; font-size: 13px; }
 
 .agent-card-header { display: flex; align-items: center; gap: 12px; }
-.skill-ref { color: #409EFF; font-size: 13px; }
-.tab-count { margin-left: auto; color: #909399; font-size: 12px; font-weight: normal; }
+.skill-ref { color: var(--color-primary); font-size: 13px; }
+.tab-count { margin-left: auto; color: var(--text-secondary); font-size: 12px; font-weight: normal; }
 .agent-search { display: flex; gap: 8px; padding: 8px 0; flex-wrap: wrap; }
-.empty-hint { color: #909399; padding: 40px 0; text-align: center; }
+.empty-hint { color: var(--text-secondary); padding: 40px 0; text-align: center; }
 </style>

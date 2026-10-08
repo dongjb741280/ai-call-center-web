@@ -4,4 +4,4 @@
     <el-empty description="暂无运行任务" />
   </div>
 </template>
-<style scoped>.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.page-header h2{font-size:20px;font-weight:600;color:#303133;margin:0}</style>
+<style scoped>.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.page-header h2{font-size:20px;font-weight:600;color:var(--text-primary);margin:0}</style>

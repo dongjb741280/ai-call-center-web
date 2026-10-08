@@ -552,13 +552,13 @@ onMounted(loadData)
 .page-header h2 {
   font-size: 20px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin: 0;
 }
 .search-form {
   margin-bottom: 20px;
   padding: 20px;
-  background: #f8f9fa;
+  background: var(--bg-body);
   border-radius: 8px;
 }
 .pagination {
@@ -573,10 +573,10 @@ onMounted(loadData)
   margin-bottom: 0;
 }
 .text-muted {
-  color: #c0c4cc;
+  color: var(--text-placeholder);
 }
 .text-secondary {
-  color: #909399;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .dialog-section {
@@ -588,21 +588,21 @@ onMounted(loadData)
   align-items: center;
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   padding-left: 10px;
-  border-left: 3px solid #409eff;
+  border-left: 3px solid var(--color-primary);
   margin-bottom: 14px;
   line-height: 1.3;
 }
 .dialog-search-form {
   padding: 12px 16px;
-  background: #f8f9fa;
+  background: var(--bg-body);
   border-radius: 6px;
   margin-bottom: 14px;
 }
 .edit-basic-form {
   padding: 16px;
-  background: #f8f9fa;
+  background: var(--bg-body);
   border-radius: 8px;
 }
 </style>

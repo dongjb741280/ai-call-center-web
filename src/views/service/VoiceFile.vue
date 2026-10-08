@@ -160,11 +160,9 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-header h2 { font-size: 20px; font-weight: 600; color: #303133; margin: 0; }
 .play-cell { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .play-btn { width: 28px; height: 28px; }
-.play-time { font-size: 12px; color: #909399; white-space: nowrap; }
-.uploaded-file { margin-top: 4px; font-size: 12px; color: #909399; }
+.play-time { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+.uploaded-file { margin-top: 4px; font-size: 12px; color: var(--text-secondary); }
 .pagination { margin-top: 20px; display: flex; justify-content: center; }
 </style>

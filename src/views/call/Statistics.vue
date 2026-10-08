@@ -349,7 +349,7 @@ onMounted(() => {
 .page-header h2 {
   font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -380,7 +380,7 @@ onMounted(() => {
   width: 60px;
   height: 60px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #409EFF, #67C23A);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-success));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -391,13 +391,13 @@ onMounted(() => {
 .stat-content h3 {
   font-size: 28px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin: 0 0 4px 0;
 }
 
 .stat-content p {
   font-size: 14px;
-  color: #909399;
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -425,7 +425,7 @@ onMounted(() => {
 .chart-header h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -443,7 +443,7 @@ onMounted(() => {
 .section-header h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin: 0;
 }
 

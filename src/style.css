@@ -1,16 +1,22 @@
+/* Fira Sans/Fira Code 字体（可选：内网无法访问 Google Fonts 时自动回退到系统字体，可整行删除） */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+
 /* ============================================================
-   AI Call Center — Modern Design System
+   AI Call Center — Enterprise Blue Design System
    ============================================================ */
 
 /* -------- Design Tokens -------- */
 :root {
-  /* Primary palette — Indigo */
-  --color-primary: #6366f1;
-  --color-primary-light: #818cf8;
-  --color-primary-lighter: #a5b4fc;
-  --color-primary-dark: #4f46e5;
-  --color-primary-bg: #eef2ff;
-  --color-primary-bg-hover: #e0e7ff;
+  /* Primary palette — Enterprise Blue + Amber */
+  --color-primary: #1e40af;
+  --color-primary-light: #3b82f6;
+  --color-primary-lighter: #60a5fa;
+  --color-primary-dark: #1e3a8a;
+  --color-primary-bg: #eff6ff;
+  --color-primary-bg-hover: #dbeafe;
+
+  --color-secondary: #3b82f6;
+  --color-accent: #d97706;
 
   /* Semantic colors */
   --color-success: #10b981;
@@ -22,12 +28,30 @@
   --color-info: #3b82f6;
   --color-info-bg: #eff6ff;
 
+  /* Amber accent — map Element Plus warning scale to brand amber (CTA / attention) */
+  --el-color-warning: #d97706;
+  --el-color-warning-light-3: #f59e0b;
+  --el-color-warning-light-5: #fbbf24;
+  --el-color-warning-light-7: #fcd34d;
+  --el-color-warning-light-8: #fde68a;
+  --el-color-warning-light-9: #fef3c7;
+  --el-color-warning-dark-2: #b45309;
+
+  /* Enterprise Blue — map Element Plus primary scale to brand blue */
+  --el-color-primary: #1e40af;
+  --el-color-primary-light-3: #3b82f6;
+  --el-color-primary-light-5: #60a5fa;
+  --el-color-primary-light-7: #93c5fd;
+  --el-color-primary-light-8: #bfdbfe;
+  --el-color-primary-light-9: #dbeafe;
+  --el-color-primary-dark-2: #1e3a8a;
+
   /* Backgrounds */
-  --bg-body: #f1f5f9;
+  --bg-body: #f8fafc;
   --bg-card: #ffffff;
   --bg-sidebar: #0f172a;
   --bg-sidebar-hover: rgba(255, 255, 255, 0.08);
-  --bg-sidebar-active: rgba(99, 102, 241, 0.18);
+  --bg-sidebar-active: rgba(59, 130, 246, 0.18);
   --bg-header: rgba(255, 255, 255, 0.85);
   --bg-overlay: rgba(15, 23, 42, 0.5);
 
@@ -64,7 +88,8 @@
   --space-2xl: 40px;
 
   /* Typography */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  --font-family: 'Fira Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  --font-family-mono: 'Fira Code', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   --font-size-xs: 12px;
   --font-size-sm: 13px;
   --font-size-base: 14px;
@@ -226,7 +251,7 @@ a {
 }
 
 .search-form .el-form-item {
-  margin-bottom: 0;
+  margin-bottom: 12px;
 }
 
 /* -------- Tables -------- */
@@ -289,7 +314,7 @@ a {
   background: var(--color-primary);
   color: #fff;
   border-radius: var(--radius-sm);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 2px 8px rgba(30, 64, 175, 0.35);
 }
 
 /* -------- Forms -------- */
@@ -331,11 +356,11 @@ a {
   --el-button-hover-bg-color: var(--color-primary-dark);
   --el-button-hover-border-color: var(--color-primary-dark);
   --el-button-active-bg-color: var(--color-primary-dark);
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 6px rgba(30, 64, 175, 0.3);
 }
 
 .el-button--primary:hover {
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.4);
   transform: translateY(-1px);
 }
 
@@ -561,7 +586,7 @@ a {
 
 .el-menu-item.is-active {
   background: var(--bg-sidebar-active) !important;
-  color: var(--color-primary-light) !important;
+  color: var(--color-primary-lighter) !important;
   font-weight: 600;
 }
 
@@ -651,6 +676,7 @@ a {
 .text-primary { color: var(--color-primary); }
 .text-success { color: var(--color-success); }
 .text-warning { color: var(--color-warning); }
+.text-accent { color: var(--color-accent); }
 .text-danger { color: var(--color-danger); }
 
 .font-bold { font-weight: 600; }
