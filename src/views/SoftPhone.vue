@@ -17,10 +17,9 @@
           </template>
           <el-form :model="loginForm" label-width="56px" size="small" class="form-compact">
             <el-form-item label="账号">
-              <el-input v-model="loginForm.agentKey" placeholder="agent1002" size="small" />
-            </el-form-item>
-            <el-form-item label="密码">
-              <el-input v-model="loginForm.passwd" type="password" show-password placeholder="密码" size="small" />
+              <el-select v-model="loginForm.agentKey" filterable :loading="agentLoading" placeholder="选择坐席" size="small" style="width: 100%">
+                <el-option v-for="a in agentOptions" :key="a.agentKey" :label="a.agentName ? `${a.agentKey} - ${a.agentName}` : a.agentKey" :value="a.agentKey" />
+              </el-select>
             </el-form-item>
             <el-row :gutter="6">
               <el-col :span="12">
@@ -150,6 +149,7 @@
 import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { agentLogin } from '@/api/softphone'
+import { getAgentConfigList, getStationList } from '@/api/config'
 import { UA, WebSocketInterface } from 'jssip'
 import CallSdk from '@/utils/callSdk'
 
@@ -168,6 +168,8 @@ const agentToken = ref('')
 const sipRegistered = ref(false)
 const sipSession = ref(null)   // 当前 JsSIP 通话 session
 const isOutgoingCall = ref(false) // 标记是否是主动外呼（A-leg），需自动接听
+const agentOptions = ref([])
+const agentLoading = ref(false)
 
 let voxaiInstance = null
 let sipUa = null
@@ -176,13 +178,42 @@ let ringbackTimer = null
 let ringbackActive = false  // 控制振铃音开关
 
 const loginForm = reactive({
-  agentKey: 'agent1002',
+  agentKey: 'agent1001',
+  // 登录接口仍要求 64 位 SHA256 密码，但已不校验其值，故保留固定占位，不再暴露输入框
   passwd: '12345678',
   loginType: 2,
   workType: 1,
-  fsHost: '192.168.1.4',
-  fsPort: 5066
+  // fsHost / fsPort 由 loadStation() 从后台站点表填充，registerSip 内有兜底
+  fsHost: '',
+  fsPort: null
 })
+
+const loadAgents = async () => {
+  agentLoading.value = true
+  try {
+    const res = await getAgentConfigList({ pageNum: 1, pageSize: 1000 })
+    if (res.code === 0) {
+      agentOptions.value = res.data?.list || []
+    }
+  } catch { /* empty */ }
+  finally {
+    agentLoading.value = false
+  }
+}
+
+const loadStation = async () => {
+  try {
+    const res = await getStationList({ pageNum: 1, pageSize: 100 })
+    if (res.code === 0) {
+      const list = res.data?.list || []
+      const fs = list.find(s => s.status === 1 && s.wsHost) || list.find(s => s.wsHost)
+      if (fs) {
+        loginForm.fsHost = fs.wsHost
+        loginForm.fsPort = fs.wsPort
+      }
+    }
+  } catch { /* empty */ }
+}
 
 const addMessage = (type, content, level = 'info') => {
   const now = new Date()
@@ -315,7 +346,7 @@ const handleConnect = async () => {
 
     // 4. SIP 注册到 FS (loginType=1 SIP / loginType=2 WebRTC)
     if (loginForm.loginType <= 2) {
-      registerSip(res.data, loginForm.passwd)
+      registerSip(res.data)
     }
   } catch (e) {
     ElMessage.error('连接失败: ' + (e.message || '未知错误'))
@@ -346,10 +377,14 @@ const handleLogout = () => {
 }
 
 // SIP 注册到 FreeSWITCH
-const registerSip = (loginData, passwd) => {
+const registerSip = (loginData) => {
   const sipNum = loginData.sips?.[0]
   if (!sipNum) {
     addMessage('SIP', '没有 SIP 号，跳过注册', 'warning')
+    return
+  }
+  if (!loginData.sipPwd) {
+    addMessage('SIP', `分机 ${sipNum} 缺少 SIP 密码，跳过注册`, 'warning')
     return
   }
   // 销毁旧 UA（如果存在）
@@ -364,7 +399,7 @@ const registerSip = (loginData, passwd) => {
     sipUa = new UA({
       sockets: [socket],
       uri: `sip:${sipNum}@${fsHost}`,
-      password: passwd,
+      password: loginData.sipPwd,
       register: true,
       session_timers: false,
       register_expires: 3600
@@ -681,6 +716,8 @@ const handleWhisper = () => {
 
 onMounted(() => {
   addMessage('INFO', 'CallSdk 已就绪（本地模块）')
+  loadAgents()
+  loadStation()
 })
 
 onBeforeUnmount(() => {
