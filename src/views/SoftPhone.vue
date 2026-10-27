@@ -21,6 +21,9 @@
                 <el-option v-for="a in agentOptions" :key="a.agentKey" :label="a.agentName ? `${a.agentKey} - ${a.agentName}` : a.agentKey" :value="a.agentKey" />
               </el-select>
             </el-form-item>
+            <el-form-item label="密码">
+              <el-input v-model="loginForm.passwd" type="password" show-password placeholder="坐席密码" size="small" />
+            </el-form-item>
             <el-row :gutter="6">
               <el-col :span="12">
                 <el-form-item label="接听">
@@ -179,7 +182,6 @@ let ringbackActive = false  // 控制振铃音开关
 
 const loginForm = reactive({
   agentKey: 'agent1001',
-  // 登录接口仍要求 64 位 SHA256 密码，但已不校验其值，故保留固定占位，不再暴露输入框
   passwd: '12345678',
   loginType: 2,
   workType: 1,
