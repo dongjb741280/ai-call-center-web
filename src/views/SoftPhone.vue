@@ -489,6 +489,7 @@ const registerSip = (loginData) => {
         callState.value = ''
         isOutgoingCall.value = false
         addMessage('SIP', `通话失败: ${e.cause}`, 'error')
+        addMessage('SIP', `失败详情: originator=${e.originator} message=${e.message}`, 'error')
       })
     })
 
