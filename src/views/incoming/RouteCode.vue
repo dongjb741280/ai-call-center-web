@@ -264,7 +264,7 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="140" fixed="right" align="center">
+          <el-table-column label="操作" width="210" fixed="right" align="center">
             <template #default="{ row }">
               <template v-if="row._editing">
                 <el-button type="primary" size="small" @click="handleSaveConfigRow(row)">保存</el-button>
@@ -272,6 +272,7 @@
               </template>
               <template v-else>
                 <el-button type="primary" size="small" @click="handleEditConfigRow(row)">编辑</el-button>
+                <el-button v-if="row.playType === 1" type="warning" size="small" @click="handleDtmf(row)">按键</el-button>
                 <el-button type="danger" size="small" @click="handleDeleteConfigRow(row)">删除</el-button>
               </template>
             </template>
@@ -284,6 +285,51 @@
         <el-button type="primary" @click="handleEditSubmit" :loading="editSubmitLoading">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- ==================== 按键导航分支弹窗 ==================== -->
+    <el-dialog v-model="dtmfDialogVisible" :title="`按键导航分支 - ${dtmfConfigName}`" width="760px"
+      @close="dtmfDialogVisible = false" :close-on-click-modal="false">
+      <el-table :data="dtmfList" size="small" max-height="340">
+        <el-table-column label="按键" width="100" align="center">
+          <template #default="{ row }">
+            <el-input v-if="row._editing" v-model="row.dtmf" placeholder="如 1/#" size="small" maxlength="4" />
+            <span v-else>{{ row.dtmf || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="路由类型" width="130" align="center">
+          <template #default="{ row }">
+            <el-select v-if="row._editing" v-model="row.routeType" placeholder="类型" size="small" style="width:100%">
+              <el-option v-for="item in dtmfRouteTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+            <span v-else>{{ dtmfRouteTypeMap[row.routeType] || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="路由值" min-width="150">
+          <template #default="{ row }">
+            <el-input v-if="row._editing" v-model="row.routeValue" placeholder="目标ID/分机" size="small" />
+            <span v-else>{{ row.routeValue || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" align="center">
+          <template #default="{ row }">
+            <template v-if="row._editing">
+              <el-button type="primary" size="small" @click="handleSaveDtmf(row)">保存</el-button>
+              <el-button size="small" @click="handleCancelDtmf(row)">取消</el-button>
+            </template>
+            <template v-else>
+              <el-button type="primary" size="small" @click="handleEditDtmf(row)">编辑</el-button>
+              <el-button type="danger" size="small" @click="handleDeleteDtmf(row)">删除</el-button>
+            </template>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div style="margin-top:12px">
+        <el-button type="primary" size="small" @click="handleAddDtmf">新增分支</el-button>
+      </div>
+      <template #footer>
+        <el-button @click="dtmfDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -291,7 +337,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getVdnList, saveVdn, updateVdn, deleteVdn, getVdnDetail,
-  saveVdnConfig, updateVdnConfig, deleteVdnConfig } from '@/api/config'
+  saveVdnConfig, updateVdnConfig, deleteVdnConfig,
+  getVdnDtmfList, saveVdnDtmf, updateVdnDtmf, deleteVdnDtmf } from '@/api/config'
 
 // ==================== 列表数据 ====================
 const loading = ref(false)
@@ -308,6 +355,11 @@ const playTypeMap = { 1: '按键导航', 2: '技能组', 3: 'IVR', 4: '路由字
 const playTypeOptions = [
   { value: 1, label: '按键导航' }, { value: 2, label: '技能组' },
   { value: 3, label: 'IVR' }, { value: 4, label: '路由字码' }, { value: 5, label: '挂机' }
+]
+const dtmfRouteTypeMap = { 1: '技能组', 2: 'IVR', 3: '路由字码', 4: '坐席分机', 5: '挂机' }
+const dtmfRouteTypeOptions = [
+  { value: 1, label: '技能组' }, { value: 2, label: 'IVR' },
+  { value: 3, label: '路由字码' }, { value: 4, label: '坐席分机' }, { value: 5, label: '挂机' }
 ]
 const weekLabels = [
   { key: 'mon', label: '一' }, { key: 'tue', label: '二' }, { key: 'wed', label: '三' },
@@ -369,6 +421,12 @@ const editSubmitLoading = ref(false)
 const editForm = reactive({ name: '', status: 1 })
 const editConfigList = ref([])
 const editRules = { name: [{ required: true, message: '请输入子码名称', trigger: 'blur' }] }
+
+// ==================== 按键导航分支弹窗 ====================
+const dtmfDialogVisible = ref(false)
+const dtmfConfigId = ref(null)
+const dtmfConfigName = ref('')
+const dtmfList = ref([])
 
 // ==================== 列表方法 ====================
 const loadData = async () => {
@@ -537,6 +595,66 @@ const handleEditSubmit = async () => {
     loadData()
   } catch { ElMessage.error('保存失败') }
   finally { editSubmitLoading.value = false }
+}
+
+// ==================== 按键导航分支方法 ====================
+const loadDtmf = async () => {
+  if (!dtmfConfigId.value) { dtmfList.value = []; return }
+  try {
+    const res = await getVdnDtmfList(dtmfConfigId.value)
+    if (res.code === 0) {
+      dtmfList.value = (res.data || []).map(item => ({ ...item, _editing: false }))
+    }
+  } catch { /* empty */ }
+}
+
+const handleDtmf = async (row) => {
+  dtmfConfigId.value = row.id
+  dtmfConfigName.value = row.name || ''
+  dtmfDialogVisible.value = true
+  await loadDtmf()
+}
+
+const handleAddDtmf = () => {
+  dtmfList.value.unshift({ id: null, dtmf: '', routeType: 1, routeValue: '', _editing: true })
+}
+
+const handleEditDtmf = (row) => { row._editing = true }
+
+const handleCancelDtmf = (row) => {
+  if (row.id) {
+    row._editing = false
+    loadDtmf()
+  } else {
+    const idx = dtmfList.value.indexOf(row)
+    if (idx > -1) dtmfList.value.splice(idx, 1)
+  }
+}
+
+const handleSaveDtmf = async (row) => {
+  const payload = {
+    dtmf: row.dtmf,
+    routeType: row.routeType,
+    routeValue: row.routeValue === '' || row.routeValue == null ? null : Number(row.routeValue)
+  }
+  try {
+    if (row.id) {
+      await updateVdnDtmf(row.id, payload)
+    } else {
+      await saveVdnDtmf(dtmfConfigId.value, payload)
+    }
+    ElMessage.success('保存成功')
+    await loadDtmf()
+  } catch { ElMessage.error('保存失败') }
+}
+
+const handleDeleteDtmf = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确认删除按键 "${row.dtmf}" 分支吗？`, '提示', { type: 'warning' })
+    await deleteVdnDtmf(row.id)
+    ElMessage.success('删除成功')
+    await loadDtmf()
+  } catch { /* cancelled */ }
 }
 
 onMounted(loadData)

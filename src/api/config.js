@@ -284,6 +284,23 @@ export const deleteVdnConfig = (id) => {
   return request({ url: `/voxai-admin/config/vdn/config/${id}`, method: 'delete' })
 }
 
+// ==================== 按键导航分支管理 ====================
+export const getVdnDtmfList = (configId) => {
+  return request({ url: `/voxai-admin/config/vdn/config/${configId}/dtmf`, method: 'get' })
+}
+
+export const saveVdnDtmf = (configId, data) => {
+  return request({ url: `/voxai-admin/config/vdn/config/${configId}/dtmf`, method: 'post', data })
+}
+
+export const updateVdnDtmf = (id, data) => {
+  return request({ url: `/voxai-admin/config/vdn/dtmf/${id}`, method: 'put', data })
+}
+
+export const deleteVdnDtmf = (id) => {
+  return request({ url: `/voxai-admin/config/vdn/dtmf/${id}`, method: 'delete' })
+}
+
 // ==================== 日程管理 ====================
 export const getScheduleList = (params) => {
   return request({ url: '/voxai-admin/config/schedule', method: 'get', params })
