@@ -311,6 +311,12 @@
             <el-table-column label="坐席名称" width="120">
               <template #default="{ row }">{{ row.agent?.name || row.agentName || '' }}</template>
             </el-table-column>
+            <el-table-column label="主技能组" width="100" align="center">
+              <template #default="{ row }">
+                <el-tag v-if="Number(row.isPrimary) === 1 || row.isPrimary === true" size="small" type="success">是</el-tag>
+                <span v-else>否</span>
+              </template>
+            </el-table-column>
             <el-table-column label="状态" width="80" align="center">
               <template #default="{ row }">
                 <el-tag size="small" :type="row.agent?.status === 1 ? 'success' : 'info'">

@@ -19,12 +19,12 @@
     </div>
 
     <el-form :model="searchForm" inline class="search-form">
-      <el-form-item label="技能组">
+      <el-form-item label="主技能组">
         <el-select v-model="searchForm.groupId" placeholder="请选择" clearable style="width: 160px">
           <el-option v-for="g in groupOptions" :key="g.id" :label="g.name" :value="g.id" />
         </el-select>
       </el-form-item>
-      <el-form-item label="技能组id">
+      <el-form-item label="主技能组id">
         <el-input v-model="searchForm.groupId" placeholder="请输入" clearable style="width: 100px" />
       </el-form-item>
       <el-form-item label="分机号">
@@ -61,32 +61,24 @@
         <template #default="{ row }">{{ formatTime(row.uts) }}</template>
       </el-table-column>
       <el-table-column label="分机号" width="100">
-        <template #default="{ row }">{{ row.sip || row.sipNum || '-' }}</template>
+        <template #default="{ row }">{{ row.agentCode || '-' }}</template>
       </el-table-column>
-      <el-table-column prop="phone" label="手机号" width="130" />
+      <el-table-column prop="sipPhone" label="手机号" width="130" />
       <el-table-column label="坐席类型" width="100">
         <template #default="{ row }">
-          <el-tag size="small">{{ row.agentType || '普通坐席' }}</el-tag>
+          <el-tag size="small">{{ agentTypeLabel(row.agentType) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="技能组" width="80" align="center">
-        <template #default="{ row }">{{ row.groupId || row.group?.id || '-' }}</template>
+      <el-table-column label="主技能组" width="140" align="center">
+        <template #default="{ row }">{{ groupLabel(row.groupId) }}</template>
       </el-table-column>
-      <el-table-column label="开启asr" width="90" align="center">
+      <el-table-column label="录音" width="90" align="center">
         <template #default="{ row }">
-          <el-tag size="small" :type="row.asr ? 'success' : 'info'">{{ row.asr ? '已开启' : '未开启' }}</el-tag>
+          <el-tag size="small" :type="row.record === 1 ? 'success' : 'info'">{{ row.record === 1 ? '开启' : '关闭' }}</el-tag>
         </template>
-      </el-table-column>
-      <el-table-column label="总机坐席" width="90" align="center">
-        <template #default="{ row }">
-          <el-tag size="small" :type="row.isOperator ? 'success' : 'info'">{{ row.isOperator ? '已启用' : '未启用' }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="总机日程" width="100" align="center">
-        <template #default="{ row }">{{ row.scheduleName || '-' }}</template>
       </el-table-column>
       <el-table-column label="话后时长" width="80" align="center">
-        <template #default="{ row }">{{ row.afterWork || row.afterInterval || '-' }}s</template>
+        <template #default="{ row }">{{ row.afterInterval ?? '-' }}s</template>
       </el-table-column>
       <el-table-column label="外显号码" width="120" show-overflow-tooltip>
         <template #default="{ row }">{{ row.display || '-' }}</template>
@@ -103,15 +95,16 @@
       </el-table-column>
       <el-table-column label="在线" width="80" align="center" fixed="right">
         <template #default="{ row }">
-          <el-tag size="small" :type="row.agentState === 'TALKING' ? 'warning' : row.online ? 'success' : 'danger'">
-            {{ row.agentState === 'TALKING' ? '通话' : row.online ? '在线' : '下线' }}
+          <el-tag size="small" :type="row.state === 1 ? 'success' : 'info'">
+            {{ row.state === 1 ? '在线' : '下线' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="300" fixed="right">
+      <el-table-column label="操作" width="380" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
           <el-button type="success" size="small" @click="handleDetail(row)">详情</el-button>
+          <el-button type="primary" size="small" :icon="Connection" @click="handleGroups(row)">技能组</el-button>
           <el-button type="warning" size="small" @click="handleOffline(row)">IsOffline</el-button>
           <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
         </template>
@@ -130,188 +123,155 @@
       />
     </div>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑坐席' : '新增坐席'" width="650px" @close="resetForm">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="坐席账号" prop="agentKey">
-              <el-input v-model="form.agentKey" placeholder="坐席账号" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="坐席名称" prop="agentName">
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑坐席' : '新增坐席'" width="900px"
+      :close-on-click-modal="!submitLoading" :close-on-press-escape="!submitLoading" :show-close="!submitLoading" @closed="resetForm">
+      <div v-loading="editLoading">
+        <el-form ref="formRef" :model="form" :rules="rules" label-width="110px" :disabled="editLoading || submitLoading">
+          <h3 class="editor-section-title">基本信息</h3>
+          <el-descriptions v-if="isEdit" :column="3" border size="small" class="editor-metadata">
+            <el-descriptions-item label="坐席账号">{{ form.agentKey }}</el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ formatTime(form.cts) }}</el-descriptions-item>
+            <el-descriptions-item label="修改时间">{{ formatTime(form.uts) }}</el-descriptions-item>
+            <el-descriptions-item label="在线状态">{{ form.state === 1 ? '在线' : '下线' }}</el-descriptions-item>
+          </el-descriptions>
+          <el-row :gutter="20">
+            <el-col :span="12"><el-form-item label="坐席工号" prop="agentId">
+              <el-input v-model="form.agentId" :disabled="isEdit" placeholder="4-16个字符" />
+            </el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="坐席名称" prop="agentName">
               <el-input v-model="form.agentName" placeholder="坐席名称" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="密码">
-              <el-input v-model="form.passwd" placeholder="密码" show-password />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="坐席手机号" prop="phone">
-              <el-input v-model="form.phone" placeholder="手机号" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="技能组" prop="groupId">
-              <el-select v-model="form.groupId" style="width: 100%" placeholder="选择技能组">
-                <el-option v-for="g in groupOptions" :key="g.id" :label="g.name" :value="g.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="坐席类型">
+            </el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="密码" prop="passwd">
+              <el-input v-model="form.passwd" :placeholder="isEdit ? '留空保留原密码' : '请输入密码'" show-password autocomplete="new-password" />
+            </el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="绑定手机号">
+              <el-input v-model="form.sipPhone" placeholder="绑定的电话号码" />
+            </el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="分机号">
+              <el-input v-model="form.agentCode" placeholder="坐席分机号" maxlength="20" />
+            </el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="坐席类型">
               <el-select v-model="form.agentType" style="width: 100%">
-                <el-option label="普通坐席" value="普通坐席" />
-                <el-option label="班长坐席" value="班长坐席" />
+                <el-option label="普通坐席" :value="1" /><el-option label="班长坐席" :value="2" />
               </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="分机号">
-              <el-input v-model="form.sip" placeholder="分机号" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="总机坐席">
-              <el-switch v-model="form.isOperator" active-text="启用" inactive-text="未启用" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="外显号码">
+            </el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="外显号码">
               <el-input v-model="form.display" placeholder="外显号码" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="振铃时长(秒)">
-              <el-input v-model.number="form.ringTime" placeholder="30" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="话后时长(秒)">
-              <el-input v-model.number="form.afterWork" placeholder="5" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="开启asr">
-              <el-switch v-model="form.asr" active-text="开启" inactive-text="关闭" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="chat">
-              <el-switch v-model="form.chat" active-text="开启" inactive-text="关闭" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="videoChat">
-              <el-switch v-model="form.videoChat" active-text="开启" inactive-text="关闭" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="总机日程">
-              <el-input v-model="form.scheduleName" placeholder="日程名称" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="状态">
+            </el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="振铃时长(秒)" prop="ringTime">
+              <el-input-number v-model="form.ringTime" :min="1" :max="600" :precision="0" style="width: 100%" />
+            </el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="话后时长(秒)" prop="afterInterval">
+              <el-input-number v-model="form.afterInterval" :min="0" :precision="0" style="width: 100%" />
+            </el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="录音">
+              <el-switch v-model="form.record" :active-value="1" :inactive-value="0" active-text="开启" inactive-text="关闭" />
+            </el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="状态">
               <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </el-form>
+            </el-form-item></el-col>
+          </el-row>
+
+          <h3 class="editor-section-title">技能组</h3>
+          <el-form-item label="所属技能组">
+            <el-select v-model="form.groups.groupIds" multiple filterable placeholder="选择所属技能组" style="width: 100%" @change="handleEditGroupSelection">
+              <el-option v-for="g in groupOptions" :key="g.id" :label="g.name" :value="g.id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="主技能组">
+            <el-select v-model="form.groups.groupId" :disabled="!form.groups.groupIds.length" placeholder="从所属技能组中选择" style="width: 100%">
+              <el-option v-for="id in form.groups.groupIds" :key="id" :label="groupLabel(id)" :value="id" />
+            </el-select>
+          </el-form-item>
+          <el-table :data="editGroupRows" size="small" class="editor-group-table">
+            <el-table-column prop="id" label="技能组ID" width="100" />
+            <el-table-column prop="name" label="技能组名称" />
+            <el-table-column prop="levelValue" label="技能组等级" width="120" />
+            <el-table-column label="主技能组" width="110">
+              <template #default="{ row }"><el-tag v-if="row.isPrimary === 1" size="small" type="success">主技能组</el-tag><span v-else>—</span></template>
+            </el-table-column>
+          </el-table>
+
+          <div class="editor-section-header">
+            <h3 class="editor-section-title">坐席技能</h3>
+            <el-button type="primary" plain size="small" :disabled="editLoading || submitLoading || form.skillAgents.length >= 20" @click="addAgentSkill">添加技能</el-button>
+          </div>
+          <el-table :data="form.skillAgents" size="small" empty-text="暂无技能，点击“添加技能”进行配置">
+            <el-table-column label="技能名称" min-width="220">
+              <template #default="{ row, $index }">
+                <el-form-item :prop="`skillAgents.${$index}.skillId`" :rules="{ required: true, message: '请选择技能', trigger: 'change' }" class="skill-cell-field">
+                  <el-select v-model="row.skillId" filterable placeholder="请选择技能" style="width: 100%">
+                    <el-option v-for="skill in skillOptions" :key="skill.id" :label="skill.name" :value="skill.id"
+                      :disabled="form.skillAgents.some(other => other !== row && String(other.skillId) === String(skill.id))" />
+                  </el-select>
+                </el-form-item>
+              </template>
+            </el-table-column>
+            <el-table-column label="技能等级（1-100）" min-width="170">
+              <template #default="{ row, $index }">
+                <el-form-item :prop="`skillAgents.${$index}.rankValue`" :rules="{ required: true, type: 'number', min: 1, max: 100, message: '填写1-100之间的等级', trigger: 'change' }" class="skill-cell-field">
+                  <el-input-number v-model="row.rankValue" :min="1" :max="100" :precision="0" style="width: 100%" />
+                </el-form-item>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="90" align="center">
+              <template #default="{ $index }"><el-button link type="danger" @click="form.skillAgents.splice($index, 1)">移除</el-button></template>
+            </el-table-column>
+          </el-table>
+          <p class="group-hint">技能组和技能变更后，坐席需重新登录生效。</p>
+        </el-form>
+      </div>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确定</el-button>
+        <el-button @click="dialogVisible = false" :disabled="submitLoading">取消</el-button>
+        <el-button type="primary" @click="handleSubmit" :loading="submitLoading" :disabled="editLoading || !editLoaded">保存</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="detailVisible" title="坐席详情" width="650px" @close="detailVisible = false">
+    <el-dialog v-model="detailVisible" title="坐席详情" width="900px" @close="detailVisible = false">
       <div v-loading="detailLoading" v-if="detail">
-        <el-descriptions :column="2" border size="small">
+        <h3 class="editor-section-title">基本信息</h3>
+        <el-descriptions :column="3" border size="small">
           <el-descriptions-item label="坐席账号">{{ detail.agentKey }}</el-descriptions-item>
-          <el-descriptions-item label="分机号">{{ detail.sip || detail.sipNum || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="坐席工号">{{ detail.agentId }}</el-descriptions-item>
           <el-descriptions-item label="坐席名称">{{ detail.agentName }}</el-descriptions-item>
+          <el-descriptions-item label="分机号">{{ detail.agentCode || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="绑定手机号">{{ detail.sipPhone || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="坐席类型">{{ agentTypeLabel(detail.agentType) }}</el-descriptions-item>
+          <el-descriptions-item label="主技能组">{{ groupLabel(detail.groupId) }}</el-descriptions-item>
+          <el-descriptions-item label="话后时长">{{ detail.afterInterval ?? '—' }} 秒</el-descriptions-item>
+          <el-descriptions-item label="振铃时长">{{ detail.ringTime ?? '—' }} 秒</el-descriptions-item>
+          <el-descriptions-item label="外显号码">{{ detail.display || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="录音">{{ detail.record === 1 ? '开启' : '关闭' }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ detail.status === 1 ? '启用' : '禁用' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ formatTime(detail.cts) }}</el-descriptions-item>
           <el-descriptions-item label="修改时间">{{ formatTime(detail.uts) }}</el-descriptions-item>
-          <el-descriptions-item label="坐席类型">{{ detail.agentType || '普通坐席' }}</el-descriptions-item>
-          <el-descriptions-item label="技能组">{{ detail.groupName || detail.groupId || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="chat">
-            <el-tag size="small" :type="detail.chat ? 'success' : 'info'">{{ detail.chat ? '已开启' : '未开启' }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="videoChat">
-            <el-tag size="small" :type="detail.videoChat ? 'success' : 'info'">{{ detail.videoChat ? '已开启' : '未开启' }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="总机坐席">
-            <el-tag size="small" :type="detail.isOperator ? 'success' : 'info'">{{ detail.isOperator ? '已启用' : '未启用' }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="开启asr">
-            <el-tag size="small" :type="detail.asr ? 'success' : 'info'">{{ detail.asr ? '已开启' : '未开启' }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="总机日程">{{ detail.scheduleName || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="话后时长">{{ detail.afterWork || detail.afterInterval || '-' }}s</el-descriptions-item>
-          <el-descriptions-item label="外显号码">{{ detail.display || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="振铃时长">{{ detail.ringTime || '-' }}s</el-descriptions-item>
-          <el-descriptions-item label="手机号">{{ detail.phone || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="在线">
-            <el-tag size="small" :type="detail.agentState === 'TALKING' ? 'warning' : detail.online ? 'success' : 'danger'">
-              {{ detail.agentState === 'TALKING' ? '通话' : detail.online ? '在线' : '下线' }}
-            </el-tag>
-          </el-descriptions-item>
+          <el-descriptions-item label="在线状态">{{ detail.state === 1 ? '在线' : '下线' }}</el-descriptions-item>
         </el-descriptions>
-
-        <el-divider />
-
-        <el-card shadow="never" class="detail-card">
-          <template #header><span>技能组</span></template>
-          <el-table :data="groupTableData" size="small" max-height="250">
-            <el-table-column prop="id" label="技能组id" width="100" />
-            <el-table-column prop="name" label="技能组" width="140" />
-            <el-table-column label="技能组等级" width="100" align="center">
-              <template #default="{ row }">{{ row.level || row.levelValue || '-' }}</template>
-            </el-table-column>
-          </el-table>
-          <div v-if="groupTableData.length === 0" style="color:var(--text-secondary);padding:12px 0">暂无数据</div>
-        </el-card>
-
-        <el-card shadow="never" class="detail-card">
-          <template #header><span>坐席技能</span></template>
-          <el-table :data="skillTableData" size="small" max-height="250">
-            <el-table-column prop="skillId" label="技能id" width="80" />
-            <el-table-column label="技能名称" width="140">
-              <template #default="{ row }">{{ row.skillName || row.name || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="等级类型" width="100">
-              <template #default="{ row }">{{ {1:'等级',2:'百分比',3:'固定值'}[row.rankType] || row.rankValue || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="匹配规则" width="100">
-              <template #default="{ row }">{{ row.matchType === 1 ? '低到高' : row.matchType === 2 ? '高到低' : row.matchType || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="占用率" width="80" align="center">
-              <template #default="{ row }">{{ row.shareValue ?? row.rankValue ?? '-' }}</template>
-            </el-table-column>
-          </el-table>
-          <div v-if="skillTableData.length === 0" style="color:var(--text-secondary);padding:12px 0">暂无数据</div>
-        </el-card>
+        <h3 class="editor-section-title">技能组</h3>
+        <el-table :data="groupTableData" size="small" max-height="250">
+          <el-table-column prop="id" label="技能组ID" width="100" />
+          <el-table-column prop="name" label="技能组名称" />
+          <el-table-column prop="levelValue" label="技能组等级" width="120" />
+          <el-table-column label="主技能组" width="110">
+            <template #default="{ row }"><el-tag v-if="row.isPrimary === 1" size="small" type="success">主技能组</el-tag><span v-else>—</span></template>
+          </el-table-column>
+        </el-table>
+        <h3 class="editor-section-title">坐席技能</h3>
+        <el-table :data="detail.skillAgents || []" size="small" max-height="250">
+          <el-table-column prop="skillId" label="技能ID" width="100" />
+          <el-table-column label="技能名称"><template #default="{ row }">{{ skillLabel(row.skillId) }}</template></el-table-column>
+          <el-table-column prop="rankValue" label="技能等级" width="170" />
+        </el-table>
       </div>
-      <el-empty v-else description="暂无详情数据" />
+      <el-empty v-else-if="!detailLoading" description="暂无详情数据" />
+      <template #footer>
+        <el-button @click="detailVisible = false">关闭</el-button>
+        <el-button v-if="detail" type="primary" @click="editFromDetail">编辑坐席</el-button>
+      </template>
     </el-dialog>
 
     <el-dialog v-model="batchVisible" title="批量新增" width="500px" @close="resetBatch">
+      <p class="group-hint">创建后，请在列表的“技能组”中设置所属技能组和主技能组。</p>
       <el-form ref="batchFormRef" :model="batchForm" :rules="batchRules" label-width="100px">
         <el-form-item label="新增坐席数" prop="count">
           <el-input v-model.number="batchForm.count" placeholder="1-1000" />
@@ -322,11 +282,6 @@
         <el-form-item label="坐席前缀" prop="prefix">
           <el-input v-model="batchForm.prefix" placeholder="最多4位" maxlength="4" />
         </el-form-item>
-        <el-form-item label="技能组">
-          <el-select v-model="batchForm.groupId" style="width: 100%" placeholder="选择技能组">
-            <el-option v-for="g in groupOptions" :key="g.id" :label="g.name" :value="g.id" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="密码" prop="passwd">
           <el-input v-model="batchForm.passwd" placeholder="8-32位" show-password />
         </el-form-item>
@@ -336,14 +291,40 @@
         <el-button type="primary" @click="handleBatchSubmit" :loading="batchLoading">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="groupsVisible" title="坐席技能组" width="520px" :close-on-click-modal="!groupsSaving" :close-on-press-escape="!groupsSaving" :show-close="!groupsSaving" @closed="resetGroups">
+      <div v-loading="groupsLoading">
+        <p>坐席：{{ groupsAgent?.agentKey }}</p>
+        <el-form label-width="100px">
+          <el-form-item label="所属技能组">
+            <el-select v-model="groupsForm.groupIds" multiple filterable style="width: 100%" :disabled="groupsLoading || groupsSaving" @change="handleGroupSelection">
+              <el-option v-for="g in groupOptions" :key="g.id" :label="g.name" :value="g.id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="主技能组">
+            <el-select v-model="groupsForm.groupId" style="width: 100%" placeholder="从所属技能组中选择" :disabled="groupsLoading || groupsSaving || !groupsForm.groupIds.length">
+              <el-option v-for="id in groupsForm.groupIds" :key="id" :label="groupLabel(id)" :value="id" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <p class="group-hint">新增坐席后可在此加入多个技能组，并指定一个主技能组用于外呼。变更后需重新登录坐席生效。</p>
+      </div>
+      <template #footer>
+        <el-button @click="groupsVisible = false" :disabled="groupsSaving">取消</el-button>
+        <el-button type="primary" @click="handleSaveGroups" :loading="groupsSaving" :disabled="groupsLoading || !groupsLoaded">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { Connection } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getAgentConfigList, getAgentConfigDetail, addAgentConfig, updateAgentConfig, deleteAgentConfig, batchAddAgents } from '@/api/config'
-import { getGroupConfigList } from '@/api/config'
+import { getAgentConfigList, getAgentConfigDetail, addAgentConfig, updateAgentConfig, deleteAgentConfig, batchAddAgents, updateAgentGroups } from '@/api/config'
+import { getGroupConfigList, getSkillList } from '@/api/config'
+import { createAgentForm, buildAgentPayload } from '@/utils/agentEditor'
+import { buildAgentGroupsPayload, getAgentGroupRows } from '@/utils/agentGroups'
 
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -354,17 +335,23 @@ const list = ref([])
 const groupOptions = ref([])
 const searchForm = reactive({ groupId: '', sip: '', agentKey: '', agentName: '', online: '' })
 const pagination = reactive({ currentPage: 1, pageSize: 10, total: 0 })
-const form = reactive({
-  id: null, agentKey: '', agentName: '', passwd: '', phone: '', sip: '',
-  groupId: null, agentType: '普通坐席', asr: false, playAgent: true,
-  scheduleName: '', afterWork: 5, display: '', ringTime: 30,
-  chat: false, videoChat: false, isOperator: false, status: 1
-})
-
+const form = reactive(createAgentForm())
+const editLoading = ref(false)
+const editLoaded = ref(false)
+const skillOptions = ref([])
+let editRequest = 0
 const rules = {
-  agentKey: [{ required: true, message: '请输入坐席账号', trigger: 'blur' }],
+  agentId: [{ required: true, message: '请输入坐席工号', trigger: 'blur' }, { min: 4, max: 16, message: '工号必须在4-16个字符之间', trigger: 'blur' }],
   agentName: [{ required: true, message: '请输入坐席名称', trigger: 'blur' }],
-  groupId: [{ required: true, message: '请选择技能组', trigger: 'change' }]
+  ringTime: [{ required: true, type: 'number', min: 1, max: 600, message: '振铃时长必须在1-600秒之间', trigger: 'change' }],
+  afterInterval: [{ required: true, type: 'number', min: 0, message: '话后时长不能小于0', trigger: 'change' }]
+}
+const agentTypeLabel = (type) => ({ 1: '普通坐席', 2: '班长坐席' }[type] || '—')
+const skillLabel = (id) => skillOptions.value.find(skill => String(skill.id) === String(id))?.name || `技能 ${id}`
+const editGroupRows = computed(() => getAgentGroupRows(form.groups, groupOptions.value))
+const addAgentSkill = () => form.skillAgents.push({ skillId: null, rankValue: 1 })
+const handleEditGroupSelection = () => {
+  if (!form.groups.groupIds.some(id => String(id) === String(form.groups.groupId))) form.groups.groupId = null
 }
 
 const formatTime = (ts) => {
@@ -372,16 +359,45 @@ const formatTime = (ts) => {
   return new Date(ts * 1000).toLocaleString('zh-CN', { hour12: false })
 }
 
+const groupLabel = (id) => id == null ? '-' : groupOptions.value.find(group => String(group.id) === String(id))?.name || String(id)
+
 const resetForm = () => {
-  formRef.value?.resetFields()
-  Object.assign(form, { id: null, agentKey: '', agentName: '', passwd: '', phone: '', sip: '', groupId: null, agentType: '普通坐席', asr: false, playAgent: true, scheduleName: '', afterWork: 5, display: '', ringTime: 30, chat: false, videoChat: false, isOperator: false, status: 1 })
+  editRequest++
+  editLoaded.value = false
+  Object.assign(form, createAgentForm())
+  formRef.value?.clearValidate()
+}
+
+const loadSkills = async () => {
+  const skills = []
+  let pageNum = 1
+  let total = 0
+  do {
+    const res = await getSkillList({ pageNum, pageSize: 100, query: '{}' })
+    if (res.code !== 0) throw new Error(res.message || '技能列表加载失败')
+    const page = res.data?.list || []
+    skills.push(...page)
+    total = res.data?.total || skills.length
+    if (!page.length) break
+    pageNum++
+  } while (skills.length < total)
+  skillOptions.value = skills
 }
 
 const loadGroups = async () => {
-  try {
-    const res = await getGroupConfigList({ pageNum: 1, pageSize: 100, query: '{}' })
-    if (res.code === 0) groupOptions.value = res.data?.list || []
-  } catch { /* empty */ }
+  const groups = []
+  let pageNum = 1
+  let total = 0
+  do {
+    const res = await getGroupConfigList({ pageNum, pageSize: 100, query: '{}' })
+    if (res.code !== 0) throw new Error(res.message || '技能组加载失败')
+    const page = res.data?.list || []
+    groups.push(...page)
+    total = res.data?.total || groups.length
+    if (!page.length) break
+    pageNum++
+  } while (groups.length < total)
+  groupOptions.value = groups
 }
 
 const loadData = async () => {
@@ -406,7 +422,7 @@ const loadData = async () => {
 const batchVisible = ref(false)
 const batchLoading = ref(false)
 const batchFormRef = ref()
-const batchForm = reactive({ count: null, start: null, prefix: '', groupId: null, passwd: '' })
+const batchForm = reactive({ count: null, start: null, prefix: '', passwd: '' })
 const batchRules = {
   count: [{ required: true, message: '请输入坐席数量', trigger: 'blur' }],
   start: [{ required: true, message: '请输入起始编号', trigger: 'blur' }],
@@ -415,7 +431,7 @@ const batchRules = {
 
 const resetBatch = () => {
   batchFormRef.value?.resetFields()
-  Object.assign(batchForm, { count: null, start: null, prefix: '', groupId: null, passwd: '' })
+  Object.assign(batchForm, { count: null, start: null, prefix: '', passwd: '' })
 }
 
 const handleBatchSubmit = async () => {
@@ -444,34 +460,49 @@ const handleReset = () => { searchForm.groupId = ''; searchForm.sip = ''; search
 const handleSizeChange = () => loadData()
 const handleCurrentChange = () => loadData()
 
-const handleAdd = () => { isEdit.value = false; resetForm(); if (groupOptions.value.length === 0) loadGroups(); dialogVisible.value = true }
-
-const handleEdit = (row) => {
-  isEdit.value = true
-  Object.assign(form, {
-    id: row.id, agentKey: row.agentKey || '', agentName: row.agentName || '',
-    phone: row.phone || '', sip: row.sip || row.sipNum || '',
-    groupId: row.groupId ?? null, agentType: row.agentType || '普通坐席',
-    asr: row.asr ?? false, playAgent: row.playAgent ?? true,
-    scheduleName: row.scheduleName || '', afterWork: row.afterWork ?? 5,
-    display: row.display || '', ringTime: row.ringTime ?? 30,
-    chat: row.chat ?? false, videoChat: row.videoChat ?? false, isOperator: row.isOperator ?? false, status: row.status ?? 1
-  })
-  if (groupOptions.value.length === 0) loadGroups()
+const openEditor = async (row) => {
+  resetForm()
+  const requestId = ++editRequest
+  isEdit.value = !!row
   dialogVisible.value = true
+  editLoading.value = true
+  try {
+    const [res] = await Promise.all([
+      row ? getAgentConfigDetail(row.id) : Promise.resolve({ code: 0, data: {} }),
+      loadGroups(), loadSkills()
+    ])
+    if (requestId !== editRequest) return
+    if (res.code !== 0 || !res.data) throw new Error(res.message || '坐席详情加载失败')
+    Object.assign(form, createAgentForm({ ...res.data, id: row?.id }))
+    editLoaded.value = true
+  } catch (error) {
+    if (requestId === editRequest) ElMessage.error(error.message || '坐席详情加载失败')
+  } finally {
+    if (requestId === editRequest) editLoading.value = false
+  }
+}
+const handleAdd = () => openEditor()
+const handleEdit = (row) => openEditor(row)
+const editFromDetail = () => {
+  const row = detail.value
+  detailVisible.value = false
+  openEditor(row)
 }
 
 const handleSubmit = async () => {
-  if (!formRef.value) return
+  if (!formRef.value || !editLoaded.value || editLoading.value || submitLoading.value) return
   try { await formRef.value.validate() } catch { return }
+  let payload
+  try { payload = buildAgentPayload(form) }
+  catch (error) { ElMessage.error(error.message); return }
   submitLoading.value = true
   try {
-    if (isEdit.value) await updateAgentConfig(form.id, { ...form })
-    else await addAgentConfig({ ...form })
+    const res = isEdit.value ? await updateAgentConfig(form.id, payload) : await addAgentConfig(payload)
+    if (res.code !== 0) throw new Error(res.message || '保存失败')
     ElMessage.success(isEdit.value ? '修改成功' : '新增成功')
     dialogVisible.value = false
-    loadData()
-  } catch { ElMessage.error('操作失败') }
+    await loadData()
+  } catch (error) { ElMessage.error(error.message || '操作失败') }
   finally { submitLoading.value = false }
 }
 
@@ -479,30 +510,70 @@ const detailVisible = ref(false)
 const detail = ref(null)
 const detailLoading = ref(false)
 
-const skillTableData = computed(() => {
-  if (!detail.value) return []
-  return detail.value.skillAgents || detail.value.skills || detail.value.skillList || []
-})
+const groupTableData = computed(() => getAgentGroupRows(detail.value, groupOptions.value))
 
-const groupTableData = computed(() => {
-  if (!detail.value) return []
-  const arr = detail.value.groups || detail.value.groupList
-  if (arr && arr.length) return arr
-  if (detail.value.groupId) {
-    return [{ id: detail.value.groupId, name: detail.value.groupName || `技能组${detail.value.groupId}`, level: detail.value.groupLevel }]
+const groupsVisible = ref(false)
+const groupsLoading = ref(false)
+const groupsSaving = ref(false)
+const groupsLoaded = ref(false)
+const groupsAgent = ref(null)
+const groupsForm = reactive({ groupIds: [], groupId: null })
+let groupsRequest = 0
+
+const resetGroups = () => {
+  groupsRequest++
+  groupsLoaded.value = false
+}
+
+const handleGroups = async (row) => {
+  const requestId = ++groupsRequest
+  groupsAgent.value = row
+  groupsVisible.value = true
+  groupsLoaded.value = false
+  groupsLoading.value = true
+  Object.assign(groupsForm, { groupIds: [], groupId: null })
+  try {
+    const [res] = await Promise.all([getAgentConfigDetail(row.id), loadGroups()])
+    if (requestId !== groupsRequest) return
+    if (res.code !== 0) throw new Error(res.message || '坐席技能组加载失败')
+    Object.assign(groupsForm, { groupIds: [...(res.data.groupIds || [])], groupId: res.data.groupId ?? null })
+    groupsLoaded.value = true
+  } catch (error) {
+    if (requestId === groupsRequest) ElMessage.error(error.message || '坐席技能组加载失败')
+  } finally {
+    if (requestId === groupsRequest) groupsLoading.value = false
   }
-  return []
-})
+}
+
+const handleGroupSelection = () => {
+  if (!groupsForm.groupIds.some(id => String(id) === String(groupsForm.groupId))) groupsForm.groupId = null
+}
+
+const handleSaveGroups = async () => {
+  if (!groupsLoaded.value || groupsLoading.value || groupsSaving.value) return
+  let payload
+  try { payload = buildAgentGroupsPayload(groupsForm) }
+  catch (error) { ElMessage.error(error.message); return }
+  groupsSaving.value = true
+  try {
+    const res = await updateAgentGroups(groupsAgent.value.id, payload)
+    if (res.code !== 0) throw new Error(res.message || '技能组保存失败')
+    ElMessage.success('技能组保存成功')
+    groupsVisible.value = false
+    await loadData()
+  } catch (error) { ElMessage.error(error.message || '技能组保存失败') }
+  finally { groupsSaving.value = false }
+}
 
 const handleDetail = async (row) => {
   detailVisible.value = true
   detailLoading.value = true
   detail.value = null
   try {
-    const res = await getAgentConfigDetail(row.id)
-    if (res.code === 0) detail.value = res.data
-    else detail.value = row
-  } catch { detail.value = row }
+    const [res] = await Promise.all([getAgentConfigDetail(row.id), loadGroups(), loadSkills()])
+    if (res.code !== 0 || !res.data) throw new Error(res.message || '坐席详情加载失败')
+    detail.value = res.data
+  } catch (error) { ElMessage.error(error.message || '坐席详情加载失败') }
   finally { detailLoading.value = false }
 }
 
@@ -523,10 +594,18 @@ const handleDelete = async (row) => {
   } catch { /* cancelled */ }
 }
 
-onMounted(() => { loadData(); loadGroups() })
+onMounted(() => { loadData(); loadGroups().catch(error => ElMessage.error(error.message)) })
 </script>
 
 <style scoped>
 .header-actions { display: flex; gap: 8px; }
 .pagination { margin-top: 20px; display: flex; justify-content: center; }
+.editor-section-title { margin: 24px 0 16px; font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.editor-section-title:first-child { margin-top: 0; }
+.editor-section-header { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; margin-bottom: 16px; }
+.editor-section-header .editor-section-title { margin: 0; }
+.editor-metadata { margin-bottom: 20px; }
+.editor-group-table { margin-bottom: 24px; }
+.skill-cell-field { margin: 12px 0 20px; }
+.group-hint { color: var(--text-secondary); line-height: 1.6; }
 </style>

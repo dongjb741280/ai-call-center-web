@@ -8,8 +8,8 @@ import { resolve } from 'path'
 export default defineConfig({
   plugins: [
     vue(),
-    AutoImport({ resolvers: [ElementPlusResolver()] }),
-    Components({ resolvers: [ElementPlusResolver()] }),
+    AutoImport({ resolvers: [ElementPlusResolver({ importStyle: false })] }),
+    Components({ resolvers: [ElementPlusResolver({ importStyle: false })] }),
   ],
   resolve: {
     alias: { '@': resolve(__dirname, 'src') },

@@ -168,6 +168,10 @@ export const updateAgentConfig = (id, data) => {
   return request({ url: `/voxai-admin/config/agent/${id}`, method: 'put', data })
 }
 
+export const updateAgentGroups = (id, data) => {
+  return request({ url: `/voxai-admin/config/agent/${id}/groups`, method: 'put', data })
+}
+
 export const deleteAgentConfig = (id) => {
   return request({ url: `/voxai-admin/config/agent/${id}`, method: 'delete' })
 }
