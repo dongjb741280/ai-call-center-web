@@ -19,8 +19,9 @@
 - **企业管理**: 企业信息管理、状态控制
 
 ### 🎧 坐席管理
-- **坐席列表**: 坐席信息管理、状态控制
-- **技能组管理**: 技能组配置、坐席分配
+- **坐席列表**: 编辑与详情保持一致，统一维护基本信息、技能组及坐席技能等级；编辑密码留空保留原密码
+- **技能组管理**: 蓝色“技能组”快捷按钮，多组归属及唯一主技能组配置
+- **坐席技能**: 最多 20 项不重复技能，等级为 1–100；组与技能变更在坐席重新登录后生效
 - **状态管理**: 空闲/忙碌状态切换
 
 ### 📞 呼叫管理
@@ -118,7 +119,14 @@ frontend/
 - `DELETE /api/admin/user/{id}` - 删除用户
 
 ### 坐席接口
-- `GET /voxai-call/agent/list` - 坐席列表
+- `GET /voxai-admin/config/agent` - 坐席列表
+- `GET /voxai-admin/config/agent/{id}` - 完整详情
+- `POST /voxai-admin/config/agent` - 新建坐席（可同时配置技能组和技能）
+- `PUT /voxai-admin/config/agent/{id}` - 统一保存基本信息、`groups` 和 `skillAgents`
+- `PUT /voxai-admin/config/agent/{id}/groups` - 单独保存技能组，参数为 `groupIds` 和主技能组 `groupId`
+
+统一保存时，`groups` / `skillAgents` 不传或为 `null` 表示保留；`groups: {groupIds: [], groupId: null}` / `skillAgents: []` 分别清空组关系和技能。后端完整契约见配套仓库的 `docs/07-坐席管理.md`。
+
 - `POST /voxai-call/cti/agent/ready` - 坐席空闲
 - `POST /voxai-call/cti/agent/notReady` - 坐席忙碌
 
