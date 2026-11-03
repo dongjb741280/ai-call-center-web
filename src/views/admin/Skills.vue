@@ -1,115 +1,53 @@
 <template>
   <div class="page-card">
-    <div class="page-header">
-      <h2>技能</h2>
-    </div>
-
+    <div class="page-header"><h2>技能</h2><el-button type="primary" @click="openSkill()">新增技能</el-button></div>
+    <el-alert title="技能是独立的能力字典，可被多个技能组使用。此处维护坐席技能等级；组级匹配规则请在技能组中配置。" type="info" :closable="false" show-icon />
     <div class="skill-layout">
-      <!-- 左侧：分组列表 -->
-      <div class="left-panel">
-        <div v-for="group in groupSkillsData" :key="group.id" class="group-block">
-          <div class="group-title">
-            <span>{{ group.name }}</span>
-            <el-tag size="small">{{ group.skills?.length || 0 }}</el-tag>
-          </div>
-          <div class="skill-items">
-            <div
-              v-for="skill in group.skills"
-              :key="skill.id"
-              :class="['skill-row', { active: selectedSkill?.id === skill.id }]"
-              @click="selectSkill(skill, group)"
-            >
-              <span class="skill-name">{{ skill.skillName || skill.name || '-' }}</span>
-              <div class="skill-actions">
-                <el-button link type="primary" size="small" @click.stop="handleEdit(skill)">编辑</el-button>
-                <el-button link type="danger" size="small" @click.stop="handleDelete(skill)">删除</el-button>
-              </div>
-            </div>
-            <div v-if="!group.skills?.length" class="empty-text">暂无技能</div>
-          </div>
+      <el-card shadow="never" class="left-panel" v-loading="loading">
+        <template #header>技能字典（{{ skills.length }}）</template>
+        <el-input v-model="skillKeyword" placeholder="搜索技能名称" clearable />
+        <div v-for="skill in filteredSkills" :key="skill.id" class="skill-row" :class="{ active: selectedSkill?.id === skill.id }">
+          <el-button link @click="selectSkill(skill)">{{ skill.name }}</el-button>
+          <div><el-button link type="primary" @click="openSkill(skill)">编辑</el-button><el-button link type="danger" :disabled="submitLoading" @click="removeSkill(skill)">删除</el-button></div>
         </div>
-      </div>
-
-      <!-- 右侧：坐席列表 -->
-      <div class="right-panel">
-        <el-card shadow="never" class="agent-card">
-          <template #header>
-            <div class="agent-card-header">
-              <el-button type="primary" size="small" @click="handleAdd">新增</el-button>
-              <span v-if="selectedSkill" class="skill-ref">
-                {{ selectedSkill.name || selectedSkill.skillName }}
-                <el-tag size="small" type="info" style="margin-left: 4px">{{ selectedGroup?.name }}</el-tag>
-              </span>
-              <span v-if="agentList.length" class="tab-count">列表总数: {{ filteredAgentList.length }}</span>
-            </div>
-          </template>
+        <el-empty v-if="!filteredSkills.length && !loading" description="暂无技能" />
+      </el-card>
+      <el-card shadow="never" class="right-panel" v-loading="agentLoading">
+        <template #header><div class="card-header-row"><span>{{ selectedSkill ? `${selectedSkill.name} · 坐席列表` : '坐席列表' }}</span><el-button type="primary" :disabled="!selectedSkill || agentLoading || submitLoading" @click="openAgent()">添加坐席</el-button></div></template>
+        <template v-if="selectedSkill">
+          <p class="remark">{{ selectedSkill.remark || '暂无备注' }}</p>
           <div class="agent-search">
-            <el-input v-model="agentSearchForm.keyword" placeholder="坐席" clearable size="small" style="width: 120px" />
-            <el-select v-model="agentSearchForm.type" placeholder="坐席类型" clearable size="small" style="width: 120px">
-              <el-option label="普通坐席" value="普通坐席" />
-              <el-option label="班长坐席" value="班长坐席" />
-            </el-select>
-            <el-select v-model="agentSearchForm.level" placeholder="技能等级" clearable size="small" style="width: 110px">
-              <el-option label="等级" value="1" />
-              <el-option label="百分比" value="2" />
-              <el-option label="固定值" value="3" />
-            </el-select>
-            <el-button type="primary" size="small">搜索</el-button>
-            <el-button size="small" @click="resetAgentSearch">重置</el-button>
+            <el-input v-model="keyword" placeholder="搜索坐席账号或名称" clearable />
+            <el-input-number v-model="rankFilter" :min="1" :max="100" :precision="0" placeholder="技能等级" />
+            <el-button @click="keyword = ''; rankFilter = undefined">重置</el-button>
           </div>
-          <el-table :data="filteredAgentList" v-loading="agentLoading" size="small" max-height="500">
-            <el-table-column label="坐席账号" min-width="110">
-              <template #default="{ row }">{{ row.agentKey || row.agent?.agentKey || '' }}</template>
-            </el-table-column>
-            <el-table-column label="坐席名称" min-width="110">
-              <template #default="{ row }">{{ row.agentName || row.agent?.name || '' }}</template>
-            </el-table-column>
-            <el-table-column label="等级类型" min-width="90">
-              <template #default="{ row }">{{ rankTypeMap[row.rankType] || row.rankValue || row.skillLevel || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="匹配规则" min-width="90">
-              <template #default="{ row }">{{ row.matchType === 1 ? '低到高' : row.matchType === 2 ? '高到低' : row.matchType || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="占用率" min-width="80" align="center">
-              <template #default="{ row }">{{ row.shareValue || row.rankValue || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="操作" width="120" align="center">
-              <template #default="{ row }">
-                <el-button link type="primary" size="small" @click="handleEditAgent(row)">编辑</el-button>
-                <el-button link type="danger" size="small" @click="handleRemoveAgent(row)">移除</el-button>
-              </template>
-            </el-table-column>
+          <el-table :data="filteredAgents" size="small" max-height="500">
+            <el-table-column prop="agentKey" label="坐席账号" min-width="150" />
+            <el-table-column prop="agentName" label="坐席名称" min-width="110" />
+            <el-table-column prop="rankValue" label="技能等级（1–100）" width="150" />
+            <el-table-column label="操作" width="160"><template #default="{ row }"><el-button link type="primary" :disabled="submitLoading" @click="openAgent(row)">编辑等级</el-button><el-button link type="danger" :disabled="submitLoading" @click="removeAgent(row)">移除</el-button></template></el-table-column>
           </el-table>
-          <div v-if="!selectedSkill" class="empty-hint">请从左侧选择一个技能</div>
-          <div v-else-if="agentList.length === 0 && !agentLoading" class="empty-hint">该技能下暂无坐席</div>
-        </el-card>
-      </div>
+          <p class="remark">共 {{ filteredAgents.length }} 个坐席。技能变更在坐席重新登录后更新呼叫配置。</p>
+        </template>
+        <el-empty v-else description="请从左侧选择技能" />
+      </el-card>
     </div>
-
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑技能' : '新增技能'" width="480px" @close="resetForm">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="技能名称" prop="name">
-          <el-input v-model="form.name" placeholder="技能名称" />
-        </el-form-item>
-        <el-form-item label="技能组">
-          <el-select v-model="form.groupId" style="width: 100%" placeholder="选择技能组">
-            <el-option v-for="g in allGroups" :key="g.id" :label="g.name" :value="g.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="技能类型">
-          <el-select v-model="form.type" style="width: 100%">
-            <el-option label="普通" value="普通" />
-            <el-option label="VIP" value="VIP" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="form.description" placeholder="技能描述" type="textarea" />
-        </el-form-item>
+    <el-dialog v-model="skillVisible" :title="skillForm.id ? '编辑技能' : '新增技能'" width="480px" :close-on-click-modal="false" :before-close="closeSkill">
+      <el-form label-width="90px">
+        <el-form-item label="技能名称" required><el-input v-model="skillForm.name" maxlength="16" show-word-limit /></el-form-item>
+        <el-form-item label="备注"><el-input v-model="skillForm.remark" type="textarea" maxlength="100" show-word-limit /></el-form-item>
       </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确定</el-button>
-      </template>
+      <template #footer><el-button :disabled="submitLoading" @click="skillVisible = false">取消</el-button><el-button type="primary" :loading="submitLoading" @click="saveSkill">保存技能</el-button></template>
+    </el-dialog>
+    <el-dialog v-model="agentVisible" :title="agentForm.agentId ? '编辑技能等级' : '添加坐席'" width="480px" :close-on-click-modal="false" :before-close="closeAgent">
+      <el-form label-width="100px">
+        <el-form-item label="坐席" required>
+          <span v-if="agentForm.agentId">{{ agentForm.agentKey }}</span>
+          <el-select v-else v-model="agentForm.agentIds" multiple filterable placeholder="请选择坐席" style="width:100%"><el-option v-for="agent in candidates" :key="agent.id" :value="agent.id" :label="`${agent.agentName || agent.agentId || ''} (${agent.agentKey || agent.agentId})`" /></el-select>
+        </el-form-item>
+        <el-form-item label="技能等级" required><el-input-number v-model="agentForm.rankValue" :min="1" :max="100" :precision="0" /></el-form-item>
+      </el-form>
+      <template #footer><el-button :disabled="submitLoading" @click="agentVisible = false">取消</el-button><el-button type="primary" :loading="submitLoading" @click="saveAgent">保存坐席技能</el-button></template>
     </el-dialog>
   </div>
 </template>
@@ -117,160 +55,130 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getSkillList, getSkillDetail, addSkill, updateSkill, deleteSkill, deleteSkillAgent } from '@/api/config'
-import { getGroupConfigList, getGroupConfigDetail } from '@/api/config'
-
-const rankTypeMap = { 1: '等级', 2: '百分比', 3: '固定值' }
-
-const loading = ref(false)
-const submitLoading = ref(false)
-const dialogVisible = ref(false)
-const isEdit = ref(false)
-const formRef = ref()
-const allGroups = ref([])
-const groupSkillsData = ref([])
-const selectedSkill = ref(null)
-const selectedGroup = ref(null)
-const agentList = ref([])
-const agentLoading = ref(false)
-const agentSearchForm = reactive({ keyword: '', type: '', level: '' })
-
-const filteredAgentList = computed(() => {
-  return agentList.value.filter(a => {
-    const matchKeyword = !agentSearchForm.keyword ||
-      (a.agentKey || '').includes(agentSearchForm.keyword) ||
-      (a.agentName || a.agent?.name || '').includes(agentSearchForm.keyword)
-    const matchType = !agentSearchForm.type ||
-      (a.agentType || '').includes(agentSearchForm.type)
-    const matchLevel = !agentSearchForm.level ||
-      String(a.rankType || a.rankValue || a.skillLevel) === agentSearchForm.level
-    return matchKeyword && matchType && matchLevel
-  })
-})
-
-const pagination = reactive({ currentPage: 1, pageSize: 10, total: 0 })
-const form = reactive({ id: null, name: '', groupId: null, type: '普通', description: '' })
-const rules = { name: [{ required: true, message: '请输入技能名称', trigger: 'blur' }] }
-
-const formatTime = (ts) => {
-  if (!ts) return '-'
-  return new Date(ts * 1000).toLocaleString('zh-CN', { hour12: false })
+import { getSkillList, getSkillDetail, addSkill, updateSkill, deleteSkill, getAgentConfigList, addSkillAgent, updateSkillAgent, deleteSkillAgent } from '@/api/config'
+const loading = ref(false), agentLoading = ref(false), submitLoading = ref(false)
+const skills = ref([]), selectedSkill = ref(null), agents = ref([]), candidates = ref([])
+const skillKeyword = ref(''), keyword = ref(''), rankFilter = ref()
+const skillVisible = ref(false), agentVisible = ref(false)
+const skillForm = reactive({ id: null, name: '', remark: '' })
+const agentForm = reactive({ agentId: null, agentKey: '', agentIds: [], rankValue: 50 })
+let selectionVersion = 0
+const check = res => { if (res.code !== 0) throw new Error(res.message || '操作失败'); return res.data }
+const error = e => ElMessage.error(e.message || '操作失败')
+const allPages = async api => {
+  const list = []
+  for (let pageNum = 1; ; pageNum++) {
+    const data = check(await api({ pageNum, pageSize: 100, query: '{}' }))
+    const rows = data?.list || []
+    list.push(...rows)
+    if (!rows.length || list.length >= (data?.total ?? list.length)) return list
+  }
 }
-
-const resetForm = () => {
-  formRef.value?.resetFields()
-  Object.assign(form, { id: null, name: '', groupId: null, type: '普通', description: '' })
-}
-
-const loadData = async () => {
+const filteredSkills = computed(() => skills.value.filter(s => s.name?.includes(skillKeyword.value.trim())))
+const filteredAgents = computed(() => agents.value.filter(a => (!keyword.value || `${a.agentKey || ''} ${a.agentName || ''}`.includes(keyword.value.trim())) && (rankFilter.value == null || rankFilter.value === a.rankValue)))
+const loadSkills = async () => {
   loading.value = true
-  try {
-    const groupRes = await getGroupConfigList({ pageNum: 1, pageSize: 100, query: '{}' })
-    if (groupRes.code === 0) {
-      const groups = groupRes.data?.list || []
-      allGroups.value = groups
-      // 为每个组加载详情获取技能列表
-      const details = await Promise.all(groups.map(g =>
-        getGroupConfigDetail(g.id).then(r => (r.code === 0 ? r.data : null)).catch(() => null)
-      ))
-      groupSkillsData.value = groups.map((g, i) => ({
-        ...g,
-        skills: (details[i]?.skills || []).map(s => ({ ...s, groupId: g.id }))
-      }))
-    }
-  } catch { /* empty */ }
+  try { skills.value = await allPages(getSkillList) }
+  catch (e) { error(e) }
   finally { loading.value = false }
 }
-
-const resetAgentSearch = () => {
-  agentSearchForm.keyword = ''
-  agentSearchForm.type = ''
-  agentSearchForm.level = ''
-}
-
-const selectSkill = async (skill, group) => {
-  selectedSkill.value = skill
-  selectedGroup.value = group
-  agentLoading.value = true
-  agentList.value = []
+const selectSkill = async skill => {
+  if (submitLoading.value || agentVisible.value) return
+  const version = ++selectionVersion
+  selectedSkill.value = skill; agents.value = []; agentLoading.value = true
+  keyword.value = ''; rankFilter.value = undefined
   try {
-    const res = await getSkillDetail(skill.id)
-    if (res.code === 0) {
-      agentList.value = res.data?.skillAgents || res.data?.agents || res.data?.agentList || []
-    }
-  } catch { /* empty */ }
-  finally { agentLoading.value = false }
+    const [detailRes, directory] = await Promise.all([getSkillDetail(skill.id), allPages(getAgentConfigList)])
+    const detail = check(detailRes)
+    if (version !== selectionVersion) return
+    selectedSkill.value = detail
+    agents.value = (detail.skillAgents || []).map(row => {
+      const agent = directory.find(a => String(a.id) === String(row.agentId))
+      return { ...row, agentKey: agent?.agentKey || row.agentKey, agentName: agent?.agentName || '-' }
+    })
+    candidates.value = directory.filter(a => !agents.value.some(row => String(row.agentId) === String(a.id)))
+  } catch (e) { if (version === selectionVersion) { selectedSkill.value = null; error(e) } }
+  finally { if (version === selectionVersion) agentLoading.value = false }
 }
-
-const handleAdd = () => { isEdit.value = false; resetForm(); dialogVisible.value = true }
-
-const handleEdit = (row) => {
-  isEdit.value = true
-  Object.assign(form, { id: row.id, name: row.name || row.skillName || '', groupId: row.groupId ?? null, type: row.type || '普通', description: row.description || '' })
-  dialogVisible.value = true
+const openSkill = skill => {
+  if (submitLoading.value) return
+  Object.assign(skillForm, { id: skill?.id ?? null, name: skill?.name || '', remark: skill?.remark || '' }); skillVisible.value = true
 }
-
-const handleSubmit = async () => {
-  if (!formRef.value) return
-  try { await formRef.value.validate() } catch { return }
+const closeSkill = done => { if (!submitLoading.value) done() }
+const closeAgent = done => { if (!submitLoading.value) done() }
+const saveSkill = async () => {
+  if (submitLoading.value) return
+  const name = skillForm.name.trim(), remark = skillForm.remark.trim()
+  if (name.length < 2 || name.length > 16 || remark.length > 100) { ElMessage.error('技能名称需为2–16个字符，备注最多100个字符'); return }
   submitLoading.value = true
   try {
-    if (isEdit.value) await updateSkill(form.id, { ...form })
-    else await addSkill({ ...form })
-    ElMessage.success(isEdit.value ? '修改成功' : '新增成功')
-    dialogVisible.value = false
-    loadData()
-  } catch { ElMessage.error('操作失败') }
+    const payload = { name, ...(remark ? { remark } : {}) }
+    // The backend accepts omitted remarks, but rejects empty strings.
+    if (skillForm.id && !remark && skills.value.find(s => s.id === skillForm.id)?.remark) {
+      ElMessage.error('备注不能为空，请填写1–100个字符'); return
+    }
+    check(await (skillForm.id ? updateSkill(skillForm.id, payload) : addSkill(payload)))
+    if (selectedSkill.value?.id === skillForm.id) selectedSkill.value = { ...selectedSkill.value, ...payload }
+    skillVisible.value = false; ElMessage.success('技能已保存'); await loadSkills()
+  } catch (e) { error(e) }
   finally { submitLoading.value = false }
 }
-
-const handleDelete = async (row) => {
+const removeSkill = async skill => {
+  if (submitLoading.value) return
+  try { await ElMessageBox.confirm(`确认删除技能“${skill.name}”？绑定了坐席或技能组的技能不能删除。`, '提示', { type: 'warning' }) }
+  catch { return }
+  submitLoading.value = true
   try {
-    await ElMessageBox.confirm(`确认删除技能 "${row.name || row.skillName}" 吗？`, '提示', { type: 'warning' })
-    await deleteSkill(row.id)
-    if (selectedSkill.value?.id === row.id) { selectedSkill.value = null; agentList.value = [] }
-    ElMessage.success('删除成功')
-    loadData()
-  } catch { /* cancelled */ }
+    check(await deleteSkill(skill.id))
+    if (selectedSkill.value?.id === skill.id) { ++selectionVersion; selectedSkill.value = null; agents.value = []; agentLoading.value = false }
+    ElMessage.success('技能已删除'); await loadSkills()
+  } catch (e) { error(e) }
+  finally { submitLoading.value = false }
 }
-
-const handleEditAgent = (row) => {
-  ElMessage.info(`编辑坐席: ${row.agentKey || row.agent?.agentKey}`)
+const openAgent = row => {
+  Object.assign(agentForm, { agentId: row?.agentId ?? null, agentKey: row?.agentKey || '', agentIds: [], rankValue: row?.rankValue ?? 50 })
+  agentVisible.value = true
 }
-
-const handleRemoveAgent = async (row) => {
+const saveAgent = async () => {
+  if (submitLoading.value || !selectedSkill.value) return
+  if (!Number.isInteger(agentForm.rankValue) || agentForm.rankValue < 1 || agentForm.rankValue > 100) { ElMessage.error('技能等级必须为1–100的整数'); return }
+  if (!agentForm.agentId && (!agentForm.agentIds.length || agentForm.agentIds.length > 500)) { ElMessage.error('请选择1–500个坐席'); return }
+  const skill = selectedSkill.value
+  submitLoading.value = true
+  let saved = false
   try {
-    await ElMessageBox.confirm(`确认移除坐席 "${row.agentKey || row.agent?.agentKey}" 吗？`, '提示', { type: 'warning' })
-    await deleteSkillAgent(row.id, { agentId: row.agentId || row.agent?.id })
-    ElMessage.success('移除成功')
-    selectSkill(selectedSkill.value, selectedGroup.value)
-  } catch { /* cancelled */ }
+    check(await (agentForm.agentId
+      ? updateSkillAgent(skill.id, { agentId: agentForm.agentId, rankValue: agentForm.rankValue })
+      : addSkillAgent(skill.id, { agentIds: [...agentForm.agentIds], rankValue: agentForm.rankValue })))
+    agentVisible.value = false; saved = true; ElMessage.success('坐席技能已保存')
+  } catch (e) { error(e) }
+  finally { submitLoading.value = false }
+  if (saved) await selectSkill(skill)
 }
-
-onMounted(loadData)
+const removeAgent = async row => {
+  const skill = selectedSkill.value
+  try { await ElMessageBox.confirm(`确认移除坐席“${row.agentKey}”的“${skill.name}”技能？`, '提示', { type: 'warning' }) }
+  catch { return }
+  if (submitLoading.value) return
+  submitLoading.value = true
+  let saved = false
+  try { check(await deleteSkillAgent(skill.id, { agentIds: [row.agentId] })); saved = true; ElMessage.success('坐席技能已移除') }
+  catch (e) { error(e) }
+  finally { submitLoading.value = false }
+  if (saved && selectedSkill.value?.id === skill.id) await selectSkill(skill)
+}
+onMounted(loadSkills)
 </script>
 
 <style scoped>
-.header-actions { display: flex; gap: 8px; }
-
-.skill-layout { display: flex; gap: 16px; align-items: flex-start; }
-.left-panel { width: 360px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+.skill-layout { display: flex; gap: 16px; align-items: flex-start; margin-top: 16px; }
+.left-panel { width: 340px; flex-shrink: 0; }
 .right-panel { flex: 1; min-width: 0; }
-
-.group-block { margin-bottom: 8px; }
-.group-title { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f0f2f5; border-radius: 4px 4px 0 0; font-weight: 600; font-size: 14px; }
-.skill-items { border: 1px solid var(--border-color-light); border-top: none; border-radius: 0 0 4px 4px; }
-.skill-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
-.skill-row:last-child { border-bottom: none; }
-.skill-row:hover { background: var(--bg-body); }
-.skill-row.active { background: #ecf5ff; color: var(--color-primary); }
-.skill-name { font-size: 13px; }
-.skill-actions { display: flex; gap: 4px; flex-shrink: 0; }
-.empty-text { color: var(--text-secondary); padding: 12px 0; text-align: center; font-size: 13px; }
-
-.agent-card-header { display: flex; align-items: center; gap: 12px; }
-.skill-ref { color: var(--color-primary); font-size: 13px; }
-.tab-count { margin-left: auto; color: var(--text-secondary); font-size: 12px; font-weight: normal; }
-.agent-search { display: flex; gap: 8px; padding: 8px 0; flex-wrap: wrap; }
-.empty-hint { color: var(--text-secondary); padding: 40px 0; text-align: center; }
+.skill-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 8px; border-bottom: 1px solid var(--border-color-light); }
+.skill-row.active { background: var(--el-color-primary-light-9); }
+.card-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.agent-search { display: flex; gap: 8px; margin-bottom: 16px; }
+.agent-search .el-input { max-width: 240px; }
+.remark { color: var(--text-secondary); font-size: 13px; }
+@media (max-width: 900px) { .skill-layout { flex-direction: column; } .left-panel, .right-panel { width: 100%; box-sizing: border-box; } .agent-search { flex-wrap: wrap; } }
 </style>
