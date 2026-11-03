@@ -192,6 +192,8 @@
           </el-row>
         </el-card>
 
+        <GroupAgentsEditor v-if="dialogVisible && isEdit && form.id" :key="form.id" :group-id="form.id" />
+
         <!-- 技能列表 -->
         <el-card shadow="never" class="detail-card">
           <template #header><div class="card-header-row"><span>技能列表</span><el-button type="primary" size="small" @click="addSkill">+ 添加技能</el-button></div></template>
@@ -365,6 +367,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import GroupAgentsEditor from '@/components/GroupAgentsEditor.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getGroupConfigList, getGroupConfigDetail, getGroupAgents, addGroupConfig, deleteGroupConfig } from '@/api/config'
 
@@ -447,6 +450,7 @@ const addOverflow = () => { form.overflows.push({ name: '', handleType: 1, busyT
 const handleAdd = () => { isEdit.value = false; resetForm(); dialogVisible.value = true }
 
 const handleEdit = async (row) => {
+  resetForm()
   isEdit.value = true
   dialogVisible.value = true
   submitLoading.value = true
