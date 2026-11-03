@@ -196,21 +196,29 @@
 
         <!-- 技能列表 -->
         <el-card shadow="never" class="detail-card">
-          <template #header><div class="card-header-row"><span>技能列表</span><el-button type="primary" size="small" @click="addSkill">+ 添加技能</el-button></div></template>
+          <template #header><div class="card-header-row"><span>技能列表</span><div><el-button type="primary" size="small" @click="addSkill">+ 添加技能</el-button><el-button v-if="isEdit" type="success" size="small" :loading="skillSaveLoading" @click="saveGroupSkillBindings">保存技能路由</el-button></div></div></template>
           <el-table :data="form.skills || []" size="small" max-height="250">
-            <el-table-column label="技能名称" width="140">
+          <el-table-column label="技能名称" width="180">
               <template #default="{ row, $index }">
-                <el-input v-model="form.skills[$index].skillName" size="small" placeholder="技能名称" />
+                <el-select v-model="form.skills[$index].skillId" size="small" filterable style="width:100%" placeholder="选择技能"><el-option v-for="skill in availableSkills" :key="skill.id" :label="skill.name" :value="skill.id" /></el-select>
               </template>
             </el-table-column>
-            <el-table-column label="等级类型" width="120">
+            <el-table-column label="等级条件" width="140">
               <template #default="{ row, $index }">
                 <el-select v-model="form.skills[$index].rankType" size="small" style="width: 100%">
-                  <el-option label="等级" :value="1" />
-                  <el-option label="百分比" :value="2" />
-                  <el-option label="固定值" :value="3" />
+                  <el-option label="不限等级" :value="0" />
+                  <el-option label="小于等于" :value="1" />
+                  <el-option label="等于" :value="2" />
+                  <el-option label="大于等于" :value="3" />
+                  <el-option label="大于" :value="4" />
                 </el-select>
               </template>
+            </el-table-column>
+            <el-table-column label="技能等级" width="130">
+              <template #default="{ $index }"><el-input-number v-model="form.skills[$index].rankValue" size="small" :min="1" :max="100" :disabled="form.skills[$index].rankType === 0" /></template>
+            </el-table-column>
+            <el-table-column label="占用率(%)" width="120">
+              <template #default="{ $index }"><el-input-number v-model="form.skills[$index].shareValue" size="small" :min="1" :max="100" /></template>
             </el-table-column>
             <el-table-column label="匹配规则" width="100">
               <template #default="{ row, $index }">
@@ -369,13 +377,15 @@
 import { ref, reactive, onMounted } from 'vue'
 import GroupAgentsEditor from '@/components/GroupAgentsEditor.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getGroupConfigList, getGroupConfigDetail, getGroupAgents, addGroupConfig, deleteGroupConfig } from '@/api/config'
+import { getGroupConfigList, getGroupConfigDetail, getGroupAgents, getSkillList, addGroupConfig, updateGroupSkills, deleteGroupConfig } from '@/api/config'
 
 const loading = ref(false)
 const submitLoading = ref(false)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
+const availableSkills = ref([])
+const skillSaveLoading = ref(false)
 const list = ref([])
 const searchForm = reactive({ name: '' })
 const pagination = reactive({ currentPage: 1, pageSize: 10, total: 0 })
@@ -390,7 +400,7 @@ const form = reactive({
 const recordTypeMap = { 1: '单声道振铃录音', 2: '单声道接通录音', 3: '双声道振铃录音', 4: '双声道接通录音' }
 const handleTypeMap = { 1: '排队', 2: '溢出', 3: '挂机' }
 const busyTypeMap = { 1: '先进先出', 2: 'vip', 3: '自定义' }
-const rankTypeMap = { 1: '等级', 2: '百分比', 3: '固定值' }
+const rankTypeMap = { 0: '不限等级', 1: '小于等于', 2: '等于', 3: '大于等于', 4: '大于' }
 
 const detailVisible = ref(false)
 const detailLoading = ref(false)
@@ -444,8 +454,25 @@ const handleDetail = async (row) => {
   finally { detailLoading.value = false }
 }
 
-const addSkill = () => { form.skills.push({ skillName: '', rankType: 1, matchType: 1 }) }
+const addSkill = () => { form.skills.push({ skillId: null, levelValue: 1, rankType: 0, rankValueStart: 1, rankValue: 1, matchType: 1, shareValue: 100 }) }
 const addOverflow = () => { form.overflows.push({ name: '', handleType: 1, busyType: 1 }) }
+
+const saveGroupSkillBindings = async () => {
+  if (!form.id || skillSaveLoading.value) return
+  if ((form.skills || []).some(skill => !skill.skillId) || new Set((form.skills || []).map(skill => String(skill.skillId))).size !== form.skills.length) {
+    ElMessage.error('请选择技能，且不能重复添加')
+    return
+  }
+  skillSaveLoading.value = true
+  try {
+    const res = await updateGroupSkills(form.id, {
+      skillList: form.skills.map(({ skillId, levelValue, rankType, rankValueStart, rankValue, matchType, shareValue }) => ({ skillId, levelValue, rankType, rankValueStart, rankValue, matchType, shareValue }))
+    })
+    if (res.code !== 0) throw new Error(res.message || '技能组技能保存失败')
+    ElMessage.success('技能路由配置已保存')
+  } catch (e) { ElMessage.error(e.message || '技能组技能保存失败') }
+  finally { skillSaveLoading.value = false }
+}
 
 const handleAdd = () => { isEdit.value = false; resetForm(); dialogVisible.value = true }
 
@@ -501,6 +528,19 @@ const handleDelete = async (row) => {
 }
 
 onMounted(loadData)
+onMounted(async () => {
+  try {
+    const skills = []
+    for (let pageNum = 1; ; pageNum++) {
+      const res = await getSkillList({ pageNum, pageSize: 100, query: '{}' })
+      if (res.code !== 0) throw new Error(res.message || '技能列表加载失败')
+      const rows = res.data?.list || []
+      skills.push(...rows)
+      if (!rows.length || skills.length >= (res.data?.total ?? skills.length)) break
+    }
+    availableSkills.value = skills
+  } catch { /* skill options stay unavailable */ }
+})
 </script>
 
 <style scoped>

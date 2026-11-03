@@ -201,6 +201,10 @@ export const getGroupAgents = (id) => {
   return request({ url: `/voxai-admin/config/group/agent/${id}`, method: 'get' })
 }
 
+export const updateGroupSkills = (id, data) => {
+  return request({ url: `/voxai-admin/config/group/${id}/skills`, method: 'put', data })
+}
+
 // ==================== AI引擎 ====================
 export const getEngineList = (params) => {
   return request({ url: '/voxai-admin/admin/engine', method: 'get', params })

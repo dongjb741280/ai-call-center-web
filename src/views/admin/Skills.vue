@@ -7,7 +7,7 @@
         <template #header>技能字典（{{ skills.length }}）</template>
         <el-input v-model="skillKeyword" placeholder="搜索技能名称" clearable />
         <div v-for="skill in filteredSkills" :key="skill.id" class="skill-row" :class="{ active: selectedSkill?.id === skill.id }">
-          <el-button link @click="selectSkill(skill)">{{ skill.name }}</el-button>
+          <div class="skill-label"><el-button link @click="selectSkill(skill)">{{ skill.name }}</el-button><el-tag size="small" :type="skillBindings[skill.id]?.length ? 'success' : bindingsLoaded ? 'warning' : 'info'">{{ skillBindings[skill.id]?.length ? `${skillBindings[skill.id].length} 个技能组` : bindingsLoaded ? '未用于路由' : '绑定状态未知' }}</el-tag></div>
           <div><el-button link type="primary" @click="openSkill(skill)">编辑</el-button><el-button link type="danger" :disabled="submitLoading" @click="removeSkill(skill)">删除</el-button></div>
         </div>
         <el-empty v-if="!filteredSkills.length && !loading" description="暂无技能" />
@@ -15,6 +15,7 @@
       <el-card shadow="never" class="right-panel" v-loading="agentLoading">
         <template #header><div class="card-header-row"><span>{{ selectedSkill ? `${selectedSkill.name} · 坐席列表` : '坐席列表' }}</span><el-button type="primary" :disabled="!selectedSkill || agentLoading || submitLoading" @click="openAgent()">添加坐席</el-button></div></template>
         <template v-if="selectedSkill">
+          <div class="binding-info"><span>路由技能组：</span><template v-if="bindingsLoaded"><el-tag v-for="group in (skillBindings[selectedSkill.id] || [])" :key="group.id" size="small">{{ group.name }}</el-tag><span v-if="!skillBindings[selectedSkill.id]?.length">未绑定技能组，当前不会参与 VDN 路由</span></template><span v-else>绑定状态暂不可用</span></div>
           <p class="remark">{{ selectedSkill.remark || '暂无备注' }}</p>
           <div class="agent-search">
             <el-input v-model="keyword" placeholder="搜索坐席账号或名称" clearable />
@@ -55,11 +56,12 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getSkillList, getSkillDetail, addSkill, updateSkill, deleteSkill, getAgentConfigList, addSkillAgent, updateSkillAgent, deleteSkillAgent } from '@/api/config'
+import { getSkillList, getSkillDetail, addSkill, updateSkill, deleteSkill, getAgentConfigList, addSkillAgent, updateSkillAgent, deleteSkillAgent, getGroupConfigList, getGroupConfigDetail } from '@/api/config'
 const loading = ref(false), agentLoading = ref(false), submitLoading = ref(false)
-const skills = ref([]), selectedSkill = ref(null), agents = ref([]), candidates = ref([])
+const skills = ref([]), selectedSkill = ref(null), agents = ref([]), candidates = ref([]), skillBindings = reactive({})
 const skillKeyword = ref(''), keyword = ref(''), rankFilter = ref()
 const skillVisible = ref(false), agentVisible = ref(false)
+const bindingsLoaded = ref(false)
 const skillForm = reactive({ id: null, name: '', remark: '' })
 const agentForm = reactive({ agentId: null, agentKey: '', agentIds: [], rankValue: 50 })
 let selectionVersion = 0
@@ -78,8 +80,21 @@ const filteredSkills = computed(() => skills.value.filter(s => s.name?.includes(
 const filteredAgents = computed(() => agents.value.filter(a => (!keyword.value || `${a.agentKey || ''} ${a.agentName || ''}`.includes(keyword.value.trim())) && (rankFilter.value == null || rankFilter.value === a.rankValue)))
 const loadSkills = async () => {
   loading.value = true
-  try { skills.value = await allPages(getSkillList) }
-  catch (e) { error(e) }
+  try {
+    skills.value = await allPages(getSkillList)
+    bindingsLoaded.value = false
+    const groups = await allPages(getGroupConfigList)
+    const details = await Promise.all(groups.map(group => getGroupConfigDetail(group.id)))
+    Object.keys(skillBindings).forEach(id => delete skillBindings[id])
+    details.forEach((res, index) => {
+      if (res.code !== 0) throw new Error(res.message || '技能组绑定状态加载失败')
+      ;(res.data?.skills || []).forEach(binding => {
+        if (!skillBindings[binding.skillId]) skillBindings[binding.skillId] = []
+        skillBindings[binding.skillId].push({ id: groups[index].id, name: groups[index].name })
+      })
+    })
+    bindingsLoaded.value = true
+  } catch (e) { bindingsLoaded.value = false; error(e) }
   finally { loading.value = false }
 }
 const selectSkill = async skill => {
@@ -125,7 +140,12 @@ const saveSkill = async () => {
 }
 const removeSkill = async skill => {
   if (submitLoading.value) return
-  try { await ElMessageBox.confirm(`确认删除技能“${skill.name}”？绑定了坐席或技能组的技能不能删除。`, '提示', { type: 'warning' }) }
+  const groups = skillBindings[skill.id] || []
+  if (groups.length) {
+    ElMessage.warning(`技能仍被以下技能组使用：${groups.map(group => group.name).join('、')}。请先在技能组中移除此技能。`)
+    return
+  }
+  try { await ElMessageBox.confirm(`确认删除技能“${skill.name}”？若仍绑定坐席，后端会拒绝删除。`, '提示', { type: 'warning' }) }
   catch { return }
   submitLoading.value = true
   try {
@@ -175,8 +195,10 @@ onMounted(loadSkills)
 .left-panel { width: 340px; flex-shrink: 0; }
 .right-panel { flex: 1; min-width: 0; }
 .skill-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 8px; border-bottom: 1px solid var(--border-color-light); }
+.skill-label { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .skill-row.active { background: var(--el-color-primary-light-9); }
 .card-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.binding-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
 .agent-search { display: flex; gap: 8px; margin-bottom: 16px; }
 .agent-search .el-input { max-width: 240px; }
 .remark { color: var(--text-secondary); font-size: 13px; }

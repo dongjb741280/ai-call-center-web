@@ -3,16 +3,18 @@ import { mount, flushPromises } from '@vue/test-utils'
 import ElementPlus, { ElInput, ElInputNumber, ElSelect, ElMessage } from 'element-plus'
 import Skills from '@/views/admin/Skills.vue'
 import * as api from '@/api/config'
-vi.mock('@/api/config', () => ({ getSkillList: vi.fn(), getSkillDetail: vi.fn(), addSkill: vi.fn(), updateSkill: vi.fn(), deleteSkill: vi.fn(), getAgentConfigList: vi.fn(), addSkillAgent: vi.fn(), updateSkillAgent: vi.fn(), deleteSkillAgent: vi.fn() }))
-vi.mock('element-plus', async original => ({ ...await original(), ElMessage: { success: vi.fn(), error: vi.fn() }, ElMessageBox: { confirm: vi.fn().mockResolvedValue(true) } }))
+vi.mock('@/api/config', () => ({ getSkillList: vi.fn(), getSkillDetail: vi.fn(), addSkill: vi.fn(), updateSkill: vi.fn(), deleteSkill: vi.fn(), getAgentConfigList: vi.fn(), addSkillAgent: vi.fn(), updateSkillAgent: vi.fn(), deleteSkillAgent: vi.fn(), getGroupConfigList: vi.fn(), getGroupConfigDetail: vi.fn() }))
+vi.mock('element-plus', async original => ({ ...await original(), ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn() }, ElMessageBox: { confirm: vi.fn().mockResolvedValue(true) } }))
 let wrapper
 const button = label => wrapper.findAll('button').find(b => b.text() === label)
 const click = async label => { await button(label).trigger('click'); await flushPromises() }
 beforeEach(async () => {
   vi.clearAllMocks()
-  api.getSkillList.mockResolvedValue({ code: 0, data: { list: [{ id: 30, name: '退款处理', remark: '售后能力' }], total: 1 } })
-  api.getSkillDetail.mockResolvedValue({ code: 0, data: { id: 30, name: '退款处理', skillAgents: [{ id: 999, skillId: 30, agentId: 7, rankValue: 80 }] } })
+  api.getSkillList.mockResolvedValue({ code: 0, data: { list: [{ id: 30, name: '退款处理', remark: '售后能力' }, { id: 31, name: '英语支持' }], total: 2 } })
+  api.getSkillDetail.mockImplementation(async id => ({ code: 0, data: { id, name: id === 30 ? '退款处理' : '英语支持', skillAgents: id === 30 ? [{ id: 999, skillId: 30, agentId: 7, rankValue: 80 }] : [] } }))
   api.getAgentConfigList.mockResolvedValue({ code: 0, data: { list: [{ id: 7, agentKey: '1001@test', agentName: '客服一' }, { id: 8, agentKey: '1002@test', agentName: '客服二' }], total: 2 } })
+  api.getGroupConfigList.mockResolvedValue({ code: 0, data: { list: [{ id: 10, name: '售后组' }], total: 1 } })
+  api.getGroupConfigDetail.mockResolvedValue({ code: 0, data: { skills: [{ id: 101, skillId: 30 }] } })
   for (const name of ['addSkill', 'updateSkill', 'deleteSkill', 'addSkillAgent', 'updateSkillAgent', 'deleteSkillAgent']) api[name].mockResolvedValue({ code: 0 })
   wrapper = mount(Skills, { global: { plugins: [ElementPlus], stubs: { ElDialog: { template: '<div><slot /><slot name="footer" /></div>' } } } })
   await flushPromises()
@@ -25,6 +27,21 @@ it('技能字典直接显示独立技能，坐席详情使用技能ID', async ()
   expect(wrapper.text()).toContain('客服一')
   expect(wrapper.text()).toContain('80')
   expect(wrapper.text()).not.toContain('占用率')
+})
+it('按技能ID显示绑定技能组，并说明未绑定技能不会参与VDN路由', async () => {
+  expect(wrapper.text()).toContain('1 个技能组')
+  await click('退款处理')
+  expect(wrapper.text()).toContain('售后组')
+  const unbound = wrapper.findAll('.skill-row .el-button').find(button => button.text() === '英语支持')
+  await unbound.trigger('click')
+  await flushPromises()
+  expect(wrapper.text()).toContain('未用于路由')
+  expect(wrapper.text()).toContain('当前不会参与 VDN 路由')
+})
+it('删除已绑定技能时提示先解除技能组关系', async () => {
+  await click('删除')
+  expect(ElMessage.warning).toHaveBeenCalledWith(expect.stringContaining('售后组'))
+  expect(api.deleteSkill).not.toHaveBeenCalled()
 })
 it('新增技能只发送名称与备注', async () => {
   await click('新增技能')
