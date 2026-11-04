@@ -63,7 +63,7 @@
       <el-table-column label="分机号" width="100">
         <template #default="{ row }">{{ row.agentCode || '-' }}</template>
       </el-table-column>
-      <el-table-column prop="sipPhone" label="手机号" width="130" />
+      <el-table-column prop="sipPhone" label="手机接听号码" width="140" />
       <el-table-column label="坐席类型" width="100">
         <template #default="{ row }">
           <el-tag size="small">{{ agentTypeLabel(row.agentType) }}</el-tag>
@@ -144,8 +144,9 @@
             <el-col :span="12"><el-form-item label="密码" prop="passwd">
               <el-input v-model="form.passwd" :placeholder="isEdit ? '留空保留原密码' : '请输入密码'" show-password autocomplete="new-password" />
             </el-form-item></el-col>
-            <el-col :span="12"><el-form-item label="绑定手机号">
-              <el-input v-model="form.sipPhone" placeholder="绑定的电话号码" />
+            <el-col :span="12"><el-form-item label="手机接听号码">
+              <el-input v-model="form.sipPhone" placeholder="手机接听模式使用的手机号" />
+              <div class="group-hint">选择“手机”接听时，系统将呼叫此号码。</div>
             </el-form-item></el-col>
             <el-col :span="12"><el-form-item label="分机号">
               <el-input v-model="form.agentCode" placeholder="坐席分机号" maxlength="20" />
@@ -156,7 +157,19 @@
               </el-select>
             </el-form-item></el-col>
             <el-col :span="12"><el-form-item label="外显号码">
-              <el-input v-model="form.display" placeholder="外显号码" />
+              <el-select v-model="form.display" clearable filterable placeholder="留空时使用技能组号码池" style="width: 100%">
+                <el-option
+                  v-for="phone in displayPhoneOptions"
+                  :key="phone.id"
+                  :label="phone.phone"
+                  :value="phone.phone"
+                />
+                <el-option
+                  v-if="form.display && !displayPhoneOptions.some(phone => phone.phone === form.display)"
+                  :label="`${form.display}（当前配置，不在启用的被叫号码中）`"
+                  :value="form.display"
+                />
+              </el-select>
             </el-form-item></el-col>
             <el-col :span="12"><el-form-item label="振铃时长(秒)" prop="ringTime">
               <el-input-number v-model="form.ringTime" :min="1" :max="600" :precision="0" style="width: 100%" />
@@ -235,7 +248,7 @@
           <el-descriptions-item label="坐席工号">{{ detail.agentId }}</el-descriptions-item>
           <el-descriptions-item label="坐席名称">{{ detail.agentName }}</el-descriptions-item>
           <el-descriptions-item label="分机号">{{ detail.agentCode || '—' }}</el-descriptions-item>
-          <el-descriptions-item label="绑定手机号">{{ detail.sipPhone || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="手机接听号码">{{ detail.sipPhone || '—' }}</el-descriptions-item>
           <el-descriptions-item label="坐席类型">{{ agentTypeLabel(detail.agentType) }}</el-descriptions-item>
           <el-descriptions-item label="主技能组">{{ groupLabel(detail.groupId) }}</el-descriptions-item>
           <el-descriptions-item label="话后时长">{{ detail.afterInterval ?? '—' }} 秒</el-descriptions-item>
@@ -321,7 +334,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Connection } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getAgentConfigList, getAgentConfigDetail, addAgentConfig, updateAgentConfig, deleteAgentConfig, batchAddAgents, updateAgentGroups } from '@/api/config'
+import { getAgentConfigList, getAgentConfigDetail, addAgentConfig, updateAgentConfig, deleteAgentConfig, batchAddAgents, updateAgentGroups, getPhoneList } from '@/api/config'
 import { getGroupConfigList, getSkillList } from '@/api/config'
 import { createAgentForm, buildAgentPayload } from '@/utils/agentEditor'
 import { buildAgentGroupsPayload, getAgentGroupRows } from '@/utils/agentGroups'
@@ -339,6 +352,7 @@ const form = reactive(createAgentForm())
 const editLoading = ref(false)
 const editLoaded = ref(false)
 const skillOptions = ref([])
+const displayPhoneOptions = ref([])
 let editRequest = 0
 const rules = {
   agentId: [{ required: true, message: '请输入坐席工号', trigger: 'blur' }, { min: 4, max: 16, message: '工号必须在4-16个字符之间', trigger: 'blur' }],
@@ -398,6 +412,27 @@ const loadGroups = async () => {
     pageNum++
   } while (groups.length < total)
   groupOptions.value = groups
+}
+
+const loadDisplayPhones = async () => {
+  try {
+    const phones = []
+    let pageNum = 1
+    let total = 0
+    do {
+      const res = await getPhoneList({ pageNum, pageSize: 100, query: JSON.stringify({ type: 3 }) })
+      if (res.code !== 0) throw new Error(res.message || '被叫号码加载失败')
+      const page = res.data?.list || []
+      phones.push(...page)
+      total = res.data?.total || phones.length
+      if (!page.length) break
+      pageNum++
+    } while (phones.length < total)
+    displayPhoneOptions.value = phones.filter(phone => Number(phone.type) === 3 && Number(phone.status) === 2)
+  } catch (error) {
+    displayPhoneOptions.value = []
+    ElMessage.warning(error.message || '被叫号码加载失败，暂时无法选择新号码')
+  }
 }
 
 const loadData = async () => {
@@ -469,7 +504,7 @@ const openEditor = async (row) => {
   try {
     const [res] = await Promise.all([
       row ? getAgentConfigDetail(row.id) : Promise.resolve({ code: 0, data: {} }),
-      loadGroups(), loadSkills()
+      loadGroups(), loadSkills(), loadDisplayPhones()
     ])
     if (requestId !== editRequest) return
     if (res.code !== 0 || !res.data) throw new Error(res.message || '坐席详情加载失败')
