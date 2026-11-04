@@ -32,14 +32,11 @@
       <el-table-column label="修改时间" min-width="170">
         <template #default="{ row }">{{ formatTime(row.uts) }}</template>
       </el-table-column>
-      <el-table-column label="号码策略" min-width="90" align="center">
-        <template #default="{ row }">
-          <el-tag size="small">{{ row.strategy || row.displayStrategy || '随机' }}</el-tag>
-        </template>
+      <el-table-column label="号码池类型" min-width="100" align="center">
+        <template #default="{ row }"><el-tag size="small">{{ displayTypeMap[Number(row.type)] || '-' }}</el-tag></template>
       </el-table-column>
-      <el-table-column label="归属地" min-width="90">
-        <template #default="{ row }">{{ row.location || row.province || '-' }}</template>
-      </el-table-column>
+      <el-table-column prop="strategy" label="号码策略" min-width="90" />
+      <el-table-column prop="location" label="归属地" min-width="100" />
       <el-table-column label="号码数量" min-width="90" align="center">
         <template #default="{ row }">{{ row.phoneCount || row.count || 0 }}</template>
       </el-table-column>
@@ -68,12 +65,15 @@
         <el-form-item label="号码池名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入号码池名称" />
         </el-form-item>
-        <el-form-item label="号码策略" prop="strategy">
-          <el-select v-model="form.strategy" placeholder="请选择号码策略" style="width: 100%">
-            <el-option label="随机" value="随机" />
-            <el-option label="轮训" value="轮训" />
+        <el-form-item label="号码池类型" prop="type">
+          <el-select v-model="form.type" style="width: 100%">
+            <el-option v-for="item in displayTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
+        <el-form-item label="号码策略" prop="strategy">
+          <el-select v-model="form.strategy" style="width:100%"><el-option label="随机" value="随机" /><el-option label="轮训" value="轮训" /></el-select>
+        </el-form-item>
+        <el-form-item label="归属地"><el-input v-model="form.location" placeholder="选填" /></el-form-item>
         <el-form-item label="号码池" prop="phoneIds">
           <div class="custom-transfer">
             <!-- Left Panel -->
@@ -181,7 +181,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getDisplayList, addDisplay, updateDisplay, deleteDisplay, getPhoneList } from '@/api/config'
+import { getDisplayList, getDisplayDetail, addDisplay, updateDisplay, deleteDisplay, getPhoneList } from '@/api/config'
 
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -192,7 +192,9 @@ const list = ref([])
 const phoneList = ref([])
 const searchForm = reactive({ name: '' })
 const pagination = reactive({ currentPage: 1, pageSize: 10, total: 0 })
-const form = reactive({ id: null, name: '', type: 2, phoneIds: [], strategy: '随机', location: '' })
+const displayTypeOptions = [{ label: '呼入号码池', value: 1 }, { label: '主叫号码池', value: 2 }, { label: '被叫号码池', value: 3 }]
+const displayTypeMap = Object.fromEntries(displayTypeOptions.map(item => [item.value, item.label]))
+const form = reactive({ id: null, name: '', type: 2, strategy: '随机', location: '', phoneIds: [] })
 
 // Custom transfer reactive states
 const leftSearch = ref('')
@@ -202,6 +204,7 @@ const rightChecked = ref([])
 
 const rules = {
   name: [{ required: true, message: '请输入号码池名称', trigger: 'blur' }],
+  type: [{ required: true, message: '请选择号码池类型', trigger: 'change' }],
   strategy: [{ required: true, message: '请选择号码策略', trigger: 'change' }],
   phoneIds: [{ required: true, message: '请选择号码', trigger: 'change' }]
 }
@@ -209,12 +212,12 @@ const rules = {
 // Computed source lists for panels
 const filteredLeftPhones = computed(() => {
   const selectedSet = new Set(form.phoneIds)
-  return phoneList.value.filter(p => !selectedSet.has(p.id) && (!leftSearch.value || p.phone.includes(leftSearch.value)))
+  return phoneList.value.filter(p => Number(p.type) === Number(form.type) && !selectedSet.has(p.id) && (!leftSearch.value || p.phone.includes(leftSearch.value)))
 })
 
 const filteredRightPhones = computed(() => {
   const selectedSet = new Set(form.phoneIds)
-  return phoneList.value.filter(p => selectedSet.has(p.id) && (!rightSearch.value || p.phone.includes(rightSearch.value)))
+  return phoneList.value.filter(p => Number(p.type) === Number(form.type) && selectedSet.has(p.id) && (!rightSearch.value || p.phone.includes(rightSearch.value)))
 })
 
 // Left panel checkbox computed properties
@@ -286,7 +289,7 @@ const formatTime = (ts) => {
 
 const resetForm = () => {
   formRef.value?.resetFields()
-  Object.assign(form, { id: null, name: '', type: 2, phoneIds: [], strategy: '随机', location: '' })
+  Object.assign(form, { id: null, name: '', type: 2, strategy: '随机', location: '', phoneIds: [] })
   leftSearch.value = ''
   rightSearch.value = ''
   leftChecked.value = []
@@ -322,13 +325,20 @@ const handleCurrentChange = () => loadData()
 
 const handleAdd = () => { isEdit.value = false; resetForm(); if (phoneList.value.length === 0) loadPhoneList(); dialogVisible.value = true }
 
-const handleEdit = (row) => {
+const handleEdit = async (row) => {
   isEdit.value = true
-  const ids = row.phoneIds || (row.companyPhoneList ? row.companyPhoneList.map(p => p.id) : [])
+  let source = row
+  if (!row.phoneIds && !row.companyPhoneList) {
+    try {
+      const res = await getDisplayDetail(row.id)
+      if (res.code === 0) source = res.data || row
+    } catch { /* keep row data */ }
+  }
+  const ids = source.phoneIds || (source.companyPhoneList ? source.companyPhoneList.map(p => p.id) : [])
   Object.assign(form, {
-    id: row.id, name: row.name || '', type: row.type ?? 2,
-    phoneIds: ids, strategy: row.strategy || '随机',
-    location: row.location || ''
+    id: source.id, name: source.name || '', type: Number(source.type) || 2,
+    strategy: source.strategy || '随机', location: source.location || '',
+    phoneIds: ids.map(Number)
   })
   leftSearch.value = ''
   rightSearch.value = ''
@@ -343,8 +353,9 @@ const handleSubmit = async () => {
   try { await formRef.value.validate() } catch { return }
   submitLoading.value = true
   try {
-    if (isEdit.value) await updateDisplay(form.id, { ...form })
-    else await addDisplay({ ...form })
+    const payload = { name: form.name, type: Number(form.type), strategy: form.strategy, location: form.location, phoneIds: [...form.phoneIds] }
+    if (isEdit.value) await updateDisplay(form.id, payload)
+    else await addDisplay(payload)
     ElMessage.success(isEdit.value ? '修改成功' : '新增成功')
     dialogVisible.value = false
     loadData()

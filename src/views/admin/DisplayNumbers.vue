@@ -14,13 +14,8 @@
       </el-form-item>
       <el-form-item label="号码类型">
         <el-select v-model="searchForm.type" placeholder="请选择" clearable style="width: 140px">
-          <el-option label="外显号码" value="外显号码" />
-          <el-option label="透传" value="透传" />
-          <el-option label="随机" value="随机" />
+          <el-option v-for="item in phoneTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
-      </el-form-item>
-      <el-form-item label="归属地">
-        <el-input v-model="searchForm.location" placeholder="请输入" clearable />
       </el-form-item>
       <el-form-item>
         <el-button type="primary" @click="handleSearch">
@@ -42,11 +37,8 @@
       <el-table-column prop="phone" label="号码" min-width="130" />
       <el-table-column label="号码类型" min-width="110">
         <template #default="{ row }">
-          <el-tag size="small">{{ row.type || row.phoneType || '外显号码' }}</el-tag>
+          <el-tag size="small">{{ phoneTypeMap[Number(row.type || row.phoneType)] || '-' }}</el-tag>
         </template>
-      </el-table-column>
-      <el-table-column label="归属地" min-width="90">
-        <template #default="{ row }">{{ row.location || row.province || row.city || '-' }}</template>
       </el-table-column>
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
@@ -75,13 +67,8 @@
         </el-form-item>
         <el-form-item label="号码类型">
           <el-select v-model="form.type" style="width: 100%">
-            <el-option label="外显号码" value="外显号码" />
-            <el-option label="透传" value="透传" />
-            <el-option label="随机" value="随机" />
+            <el-option v-for="item in phoneTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="归属地">
-          <el-input v-model="form.location" placeholder="选填" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -103,9 +90,11 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
 const list = ref([])
-const searchForm = reactive({ phone: '', type: '', location: '' })
+const phoneTypeOptions = [{ label: '呼入号码', value: 1 }, { label: '主叫显号', value: 2 }, { label: '被叫显号', value: 3 }]
+const phoneTypeMap = Object.fromEntries(phoneTypeOptions.map(item => [item.value, item.label]))
+const searchForm = reactive({ phone: '', type: null })
 const pagination = reactive({ currentPage: 1, pageSize: 10, total: 0 })
-const form = reactive({ id: null, phone: '', type: '外显号码', location: '' })
+const form = reactive({ id: null, phone: '', type: 2 })
 
 const rules = { phone: [{ required: true, message: '请输入号码', trigger: 'blur' }] }
 
@@ -116,7 +105,7 @@ const formatTime = (ts) => {
 
 const resetForm = () => {
   formRef.value?.resetFields()
-  Object.assign(form, { id: null, phone: '', type: '外显号码', location: '' })
+  Object.assign(form, { id: null, phone: '', type: 2 })
 }
 
 const loadData = async () => {
@@ -125,7 +114,6 @@ const loadData = async () => {
     const query = {}
     if (searchForm.phone) query.phone = searchForm.phone
     if (searchForm.type) query.type = searchForm.type
-    if (searchForm.location) query.location = searchForm.location
     const params = { pageNum: pagination.currentPage, pageSize: pagination.pageSize, query: JSON.stringify(query) }
     const res = await getPhoneList(params)
     if (res.code === 0) {
@@ -137,7 +125,7 @@ const loadData = async () => {
 }
 
 const handleSearch = () => { pagination.currentPage = 1; loadData() }
-const handleReset = () => { searchForm.phone = ''; searchForm.type = ''; searchForm.location = ''; pagination.currentPage = 1; loadData() }
+const handleReset = () => { searchForm.phone = ''; searchForm.type = null; pagination.currentPage = 1; loadData() }
 const handleSizeChange = () => loadData()
 const handleCurrentChange = () => loadData()
 
@@ -145,7 +133,7 @@ const handleAdd = () => { isEdit.value = false; resetForm(); dialogVisible.value
 
 const handleEdit = (row) => {
   isEdit.value = true
-  Object.assign(form, { id: row.id, phone: row.phone || '', type: row.type || '外显号码', location: row.location || row.province || row.city || '' })
+  Object.assign(form, { id: row.id, phone: row.phone || '', type: Number(row.type || row.phoneType) || 2 })
   dialogVisible.value = true
 }
 
@@ -154,8 +142,9 @@ const handleSubmit = async () => {
   try { await formRef.value.validate() } catch { return }
   submitLoading.value = true
   try {
-    if (isEdit.value) await updatePhone(form.id, { ...form })
-    else await addPhone({ ...form })
+    const payload = { phone: form.phone, type: Number(form.type) }
+    if (isEdit.value) await updatePhone(form.id, payload)
+    else await addPhone(payload)
     ElMessage.success(isEdit.value ? '修改成功' : '新增成功')
     dialogVisible.value = false
     loadData()

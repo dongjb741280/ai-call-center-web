@@ -169,12 +169,12 @@
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="主叫号码池">
-                <el-input v-model="form.callerDisplay" placeholder="主叫号码池" />
+                <el-select v-model="form.callerDisplayId" clearable filterable style="width:100%" placeholder="选择主叫号码池"><el-option v-for="pool in callerDisplayPools" :key="pool.id" :label="pool.name" :value="pool.id" /></el-select>
               </el-form-item>
             </el-col>
             <el-col :span="12">
               <el-form-item label="被叫号码池">
-                <el-input v-model="form.calledDisplay" placeholder="被叫号码池" />
+                <el-select v-model="form.calledDisplayId" clearable filterable style="width:100%" placeholder="选择被叫号码池"><el-option v-for="pool in calledDisplayPools" :key="pool.id" :label="pool.name" :value="pool.id" /></el-select>
               </el-form-item>
             </el-col>
           </el-row>
@@ -293,8 +293,8 @@
           <el-descriptions-item label="播放工号">{{ detail.playAgent ? '播放' : '不播放' }}</el-descriptions-item>
           <el-descriptions-item label="策略类型">{{ detail.groupAgentStrategyPo?.strategyType || '内置策略' }}</el-descriptions-item>
           <el-descriptions-item label="最长空闲时长">{{ detail.maxReadyTime || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="主叫号码池">{{ (detail.callerDisplays || []).join(',') || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="被叫号码池">{{ (detail.calledDisplays || []).join(',') || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="主叫号码池">{{ detail.callerDisplayName || detail.callerDisplayId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="被叫号码池">{{ detail.calledDisplayName || detail.calledDisplayId || '-' }}</el-descriptions-item>
           <el-descriptions-item label="转坐席提示音">{{ detail.transferPlayName || '转坐席音' }}</el-descriptions-item>
           <el-descriptions-item label="排队位置播报">{{ detail.notifyPosition ? '开启' : '不开启' }}</el-descriptions-item>
           <el-descriptions-item label="坐席策略">{{ detail.groupAgentStrategyPo?.name || '内置策略' }}</el-descriptions-item>
@@ -374,10 +374,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import GroupAgentsEditor from '@/components/GroupAgentsEditor.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getGroupConfigList, getGroupConfigDetail, getGroupAgents, getSkillList, addGroupConfig, updateGroupSkills, deleteGroupConfig } from '@/api/config'
+import { getGroupConfigList, getGroupConfigDetail, getGroupAgents, getSkillList, getDisplayList, addGroupConfig, updateGroupSkills, deleteGroupConfig } from '@/api/config'
 
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -393,7 +393,7 @@ const form = reactive({
   id: null, name: '', display: '', recordType: '双声道振铃录音',
   groupType: '普通技能组', level: 1, afterWork: 5, callTimeout: 60, evaluate: false,
   playAgent: 1, notifyPosition: 0, callMemory: 0, callback: false,
-  strategyType: '内置策略', callerDisplay: '', calledDisplay: '', transferPlay: '',
+  strategyType: '内置策略', callerDisplayId: null, calledDisplayId: null, transferPlay: '',
   skills: [], overflows: []
 })
 
@@ -407,6 +407,9 @@ const detailLoading = ref(false)
 const detail = ref(null)
 const agentList = ref([])
 const rules = { name: [{ required: true, message: '请输入技能组名称', trigger: 'blur' }] }
+const displayPools = ref([])
+const callerDisplayPools = computed(() => displayPools.value.filter(pool => Number(pool.type) === 2))
+const calledDisplayPools = computed(() => displayPools.value.filter(pool => Number(pool.type) === 3))
 
 const formatTime = (ts) => {
   if (!ts) return '-'
@@ -415,7 +418,7 @@ const formatTime = (ts) => {
 
 const resetForm = () => {
   formRef.value?.resetFields()
-  Object.assign(form, { id: null, name: '', display: '', recordType: '双声道振铃录音', groupType: '普通技能组', level: 1, afterWork: 5, callTimeout: 60, evaluate: false, playAgent: 1, notifyPosition: 0, callMemory: 0, callback: false, strategyType: '内置策略', callerDisplay: '', calledDisplay: '', transferPlay: '', skills: [], overflows: [] })
+  Object.assign(form, { id: null, name: '', display: '', recordType: '双声道振铃录音', groupType: '普通技能组', level: 1, afterWork: 5, callTimeout: 60, evaluate: false, playAgent: 1, notifyPosition: 0, callMemory: 0, callback: false, strategyType: '内置策略', callerDisplayId: null, calledDisplayId: null, transferPlay: '', skills: [], overflows: [] })
 }
 
 const loadData = async () => {
@@ -494,8 +497,8 @@ const handleEdit = async (row) => {
         playAgent: d.playAgent ?? 1, notifyPosition: d.notifyPosition ?? 0,
         callMemory: d.callMemory ?? 0, callback: d.ext1 ? true : false,
         strategyType: d.groupAgentStrategyPo?.strategyType || '内置策略',
-        callerDisplay: (d.callerDisplays || []).join(','),
-        calledDisplay: (d.calledDisplays || []).join(','),
+        callerDisplayId: d.callerDisplayId == null ? null : Number(d.callerDisplayId),
+        calledDisplayId: d.calledDisplayId == null ? null : Number(d.calledDisplayId),
         transferPlay: d.transferPlayName || '',
         skills: (d.skills || []).map(s => ({...s})),
         overflows: (d.groupOverflows || []).map(o => ({...o}))
@@ -510,7 +513,9 @@ const handleSubmit = async () => {
   try { await formRef.value.validate() } catch { return }
   submitLoading.value = true
   try {
-    await addGroupConfig({ ...form })
+    if (!form.calledDisplayId) ElMessage.warning('请配置被叫号码池，否则外呼可能无法生成显号')
+    const payload = { ...form, callerDisplayId: form.callerDisplayId || null, calledDisplayId: form.calledDisplayId || null }
+    await addGroupConfig(payload)
     ElMessage.success(isEdit.value ? '修改成功' : '新增成功')
     dialogVisible.value = false
     loadData()
@@ -530,6 +535,8 @@ const handleDelete = async (row) => {
 onMounted(loadData)
 onMounted(async () => {
   try {
+    const displayRes = await getDisplayList({ pageNum: 1, pageSize: 1000, query: '{}' })
+    if (displayRes.code === 0) displayPools.value = displayRes.data?.list || []
     const skills = []
     for (let pageNum = 1; ; pageNum++) {
       const res = await getSkillList({ pageNum, pageSize: 100, query: '{}' })
