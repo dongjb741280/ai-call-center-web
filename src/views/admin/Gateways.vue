@@ -198,10 +198,26 @@
         <el-form-item label="组名称" prop="routeGroup">
           <el-input v-model="rgForm.routeGroup" placeholder="2-16个字符" maxlength="16" />
         </el-form-item>
+        <el-form-item label="选路策略">
+          <el-select v-model="rgForm.selectionStrategy" style="width: 100%">
+            <el-option label="轮询" value="ROUND_ROBIN" />
+            <el-option label="按权重" value="WEIGHTED" />
+            <el-option label="顺序主备" value="FAILOVER" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="包含网关">
           <el-select v-model="rgForm.routeGetways" multiple placeholder="选择网关" style="width: 100%">
             <el-option v-for="gw in gatewayList" :key="gw.id" :label="gw.name" :value="gw.id" />
           </el-select>
+        </el-form-item>
+        <el-form-item v-if="rgForm.routeGetways.length" label="网关顺序">
+          <div class="gateway-weights">
+            <div v-for="(id, index) in rgForm.routeGetways" :key="id" class="gateway-weight">
+              <span>{{ index + 1 }}. {{ gatewayName(id) }}</span>
+              <el-input-number v-if="rgForm.selectionStrategy === 'WEIGHTED'" v-model="rgForm.gatewayWeights[id]" :min="1" :max="1000" controls-position="right" :aria-label="`${gatewayName(id)}权重`" />
+              <el-button size="small" :disabled="index === 0" @click="moveGateway(index)">上移</el-button>
+            </div>
+          </div>
         </el-form-item>
         <el-form-item label="状态">
           <el-switch v-model="rgForm.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
@@ -216,7 +232,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getRouteGatewayList, addRouteGateway, updateRouteGateway, deleteRouteGateway,
@@ -355,13 +371,24 @@ const rgIsEdit = ref(false)
 const rgSubmitLoading = ref(false)
 const rgFormRef = ref()
 const rgPagination = reactive({ currentPage: 1, pageSize: 10, total: 0 })
-const rgForm = reactive({ id: null, routeGroup: '', routeGetways: [], status: 1 })
+const rgForm = reactive({ id: null, routeGroup: '', selectionStrategy: 'ROUND_ROBIN', routeGetways: [], gatewayWeights: {}, status: 1 })
 const rgRules = { routeGroup: [{ required: true, message: '请输入组名称', trigger: 'blur' }] }
 
 const resetRgForm = () => {
   rgFormRef.value?.resetFields()
-  Object.assign(rgForm, { id: null, routeGroup: '', routeGetways: [], status: 1 })
+  Object.assign(rgForm, { id: null, routeGroup: '', selectionStrategy: 'ROUND_ROBIN', routeGetways: [], gatewayWeights: {}, status: 1 })
 }
+
+const gatewayName = (id) => gatewayList.value.find(g => g.id === id)?.name || `网关 ${id}`
+const moveGateway = (index) => {
+  if (index > 0) {
+    const [id] = rgForm.routeGetways.splice(index, 1)
+    rgForm.routeGetways.splice(index - 1, 0, id)
+  }
+}
+watch(() => [...rgForm.routeGetways], (ids) => {
+  rgForm.gatewayWeights = Object.fromEntries(ids.map(id => [id, rgForm.gatewayWeights[id] || 1]))
+})
 
 const loadGroupList = async () => {
   rgLoading.value = true
@@ -391,14 +418,15 @@ const handleEditGroup = async (row) => {
     if (res.code === 0) {
       const d = res.data
       Object.assign(rgForm, {
-        id: d.id, routeGroup: d.routeGroup || '',
-        routeGetways: d.routeGetways || [], status: d.status ?? 1
+        id: d.id, routeGroup: d.routeGroup || '', selectionStrategy: d.selectionStrategy || 'ROUND_ROBIN',
+        routeGetways: (d.routeGetways || []).map(g => typeof g === 'object' ? g.id : g),
+        gatewayWeights: Object.fromEntries((d.routeGetways || []).filter(g => typeof g === 'object').map(g => [g.id, g.weight || 1])), status: d.status ?? 1
       })
     } else {
-      Object.assign(rgForm, { id: row.id, routeGroup: row.routeGroup, routeGetways: [], status: row.status ?? 1 })
+      Object.assign(rgForm, { id: row.id, routeGroup: row.routeGroup, selectionStrategy: row.selectionStrategy || 'ROUND_ROBIN', gatewayWeights: {}, routeGetways: [], status: row.status ?? 1 })
     }
   } catch {
-    Object.assign(rgForm, { id: row.id, routeGroup: row.routeGroup, routeGetways: [], status: row.status ?? 1 })
+    Object.assign(rgForm, { id: row.id, routeGroup: row.routeGroup, selectionStrategy: row.selectionStrategy || 'ROUND_ROBIN', gatewayWeights: {}, routeGetways: [], status: row.status ?? 1 })
   }
   finally { rgSubmitLoading.value = false }
   rgDialogVisible.value = true
@@ -439,6 +467,9 @@ onMounted(loadGatewayList)
 </script>
 
 <style scoped>
+.gateway-weights { width: 100%; }
+.gateway-weight { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.gateway-weight > span { flex: 1; }
 .page-card { padding: 0; }
 .tab-actions { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
 .pagination { display: flex; justify-content: flex-end; margin-top: 16px; }

@@ -38,16 +38,16 @@
       </el-table-column>
       <el-table-column prop="numMin" label="最小长度" min-width="90" align="center" />
       <el-table-column prop="numMax" label="最大长度" min-width="90" align="center" />
-      <el-table-column label="主叫号码规则" min-width="110" align="center">
+      <el-table-column label="主叫删除位数" min-width="110" align="center">
         <template #default="{ row }">{{ row.callerChange ?? '' }}</template>
       </el-table-column>
-      <el-table-column label="主叫替换号码" min-width="120" show-overflow-tooltip>
+      <el-table-column label="主叫新前缀" min-width="120" show-overflow-tooltip>
         <template #default="{ row }">{{ row.callerChangeNum || '' }}</template>
       </el-table-column>
-      <el-table-column label="被叫号码规则" min-width="110" align="center">
+      <el-table-column label="被叫删除位数" min-width="110" align="center">
         <template #default="{ row }">{{ row.calledChange ?? '' }}</template>
       </el-table-column>
-      <el-table-column label="被叫替换号码" min-width="120" show-overflow-tooltip>
+      <el-table-column label="被叫新前缀" min-width="120" show-overflow-tooltip>
         <template #default="{ row }">{{ row.calledChangeNum || '' }}</template>
       </el-table-column>
       <el-table-column label="状态" min-width="80" align="center">
@@ -80,7 +80,7 @@
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑号码路由' : '新增号码路由'" width="600px" @close="resetForm">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
         <el-form-item label="路由号码" prop="routeNum">
-          <el-input v-model="form.routeNum" placeholder="如：950、010" maxlength="32" />
+          <el-input v-model="form.routeNum" placeholder="如：950、010 或 *" maxlength="32" />
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
@@ -102,26 +102,26 @@
         <el-divider content-position="left">主叫替换</el-divider>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="替换规则" label-width="80px">
-              <el-input v-model.number="form.callerChange" placeholder="0" />
+            <el-form-item label="删除位数" label-width="80px">
+              <el-input-number v-model="form.callerChange" :min="0" :max="32" controls-position="right" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="替换号码" label-width="80px">
-              <el-input v-model="form.callerChangeNum" placeholder="替换号码" />
+            <el-form-item label="新前缀" label-width="80px">
+              <el-input v-model="form.callerChangeNum" placeholder="留空表示不添加" maxlength="32" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-divider content-position="left">被叫替换</el-divider>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="替换规则" label-width="80px">
-              <el-input v-model.number="form.calledChange" placeholder="0" />
+            <el-form-item label="删除位数" label-width="80px">
+              <el-input-number v-model="form.calledChange" :min="0" :max="32" controls-position="right" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="替换号码" label-width="80px">
-              <el-input v-model="form.calledChangeNum" placeholder="替换号码" />
+            <el-form-item label="新前缀" label-width="80px">
+              <el-input v-model="form.calledChangeNum" placeholder="留空表示不添加" maxlength="32" />
             </el-form-item>
           </el-col>
         </el-row>
