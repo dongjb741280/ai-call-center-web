@@ -1,6 +1,6 @@
 {
   "name": "ai-call-center-web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI呼叫中心前台管理系统",
   "main": "index.js",
   "scripts": {
