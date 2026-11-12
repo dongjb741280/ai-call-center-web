@@ -519,7 +519,7 @@ const handleReady = () => {
 }
 
 // 外呼
-const handleMakeCall = () => {
+const handleMakeCall = async () => {
   if (!phoneNum.value) {
     ElMessage.warning('请输入被叫号码')
     return
@@ -535,9 +535,22 @@ const handleMakeCall = () => {
   if (audio) { audio.srcObject = null }
   if (voxaiInstance) {
     isOutgoingCall.value = true
-    voxaiInstance.makeCall(phoneNum.value)
     callState.value = 'CALLING'
     addMessage('CMD', `makeCall: ${phoneNum.value}`)
+    try {
+      const response = await voxaiInstance.makeCall(phoneNum.value)
+      addMessage('HTTP', `makeCall: ${JSON.stringify(response)}`)
+      if (response?.code !== 0) {
+        throw new Error(response?.message || '呼叫请求失败')
+      }
+    } catch (error) {
+      callState.value = ''
+      isOutgoingCall.value = false
+      stopLocalRingback()
+      const message = error.message || '呼叫请求失败'
+      addMessage('ERR', `makeCall: ${message}`, 'error')
+      ElMessage.error(message)
+    }
   }
 }
 
