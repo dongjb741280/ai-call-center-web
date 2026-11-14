@@ -70,6 +70,7 @@
             </div>
           </template>
           <div class="call-section">
+            <el-button v-if="audioPlaybackBlocked" type="warning" size="small" @click="retryCallAudio">启用通话声音</el-button>
             <div class="call-row">
               <el-input v-model="phoneNum" placeholder="被叫号码" size="small" style="flex: 1" />
               <el-button type="primary" @click="handleMakeCall" :disabled="!connected" size="small">
@@ -144,12 +145,12 @@
         </el-card>
       </div>
     </div>
-    <audio id="sipRemoteAudio" autoplay hidden></audio>
+    <audio id="sipRemoteAudio" autoplay playsinline hidden></audio>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, shallowRef, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { agentLogin } from '@/api/softphone'
 import { getAgentConfigList, getStationList } from '@/api/config'
@@ -169,7 +170,9 @@ const messages = ref([])
 const messageBodyRef = ref(null)
 const agentToken = ref('')
 const sipRegistered = ref(false)
-const sipSession = ref(null)   // 当前 JsSIP 通话 session
+// JsSIP 持有原生 WebRTC 对象，不能让 Vue 深度代理其 PeerConnection/MediaStream。
+const sipSession = shallowRef(null)
+const audioPlaybackBlocked = ref(false)
 const isOutgoingCall = ref(false) // 标记是否是主动外呼（A-leg），需自动接听
 const agentOptions = ref([])
 const agentLoading = ref(false)
@@ -179,6 +182,46 @@ let sipUa = null
 let ringbackCtx = null      // 持久AudioContext，避免重复创建导致浏览器限制
 let ringbackTimer = null
 let ringbackActive = false  // 控制振铃音开关
+let mediaStatsTimer = null
+let audioPlaySequence = 0
+
+const playRemoteAudio = async () => {
+  const audio = document.getElementById('sipRemoteAudio')
+  if (!audio?.srcObject) return
+  const sequence = ++audioPlaySequence
+  audio.muted = false
+  audio.volume = 1
+  try {
+    await audio.play()
+    if (sequence === audioPlaySequence) audioPlaybackBlocked.value = false
+  } catch (error) {
+    // A newer play()/stream replacement or call cleanup can abort an older
+    // pending play. This is not an autoplay permission failure.
+    if (sequence !== audioPlaySequence || error.name === 'AbortError') return
+    audioPlaybackBlocked.value = true
+    addMessage('SIP', `通话声音未播放: ${error.name}，请点击“启用通话声音”`, 'error')
+  }
+}
+
+const retryCallAudio = () => playRemoteAudio()
+
+const clearCallAudio = () => {
+  audioPlaySequence++
+  if (mediaStatsTimer) { clearInterval(mediaStatsTimer); mediaStatsTimer = null }
+  const audio = document.getElementById('sipRemoteAudio')
+  if (audio) { audio.pause(); audio.srcObject = null }
+  audioPlaybackBlocked.value = false
+}
+
+// 在连接按钮的用户手势中解锁来电铃声，避免等到异步 SIP 来电才创建 AudioContext。
+const prepareRingtone = () => {
+  const AudioContext = window.AudioContext || window.webkitAudioContext
+  if (!AudioContext) return
+  if (!ringbackCtx) ringbackCtx = new AudioContext()
+  if (ringbackCtx.state === 'suspended') {
+    ringbackCtx.resume().catch(error => addMessage('SIP', `请点击页面启用铃声: ${error.message}`, 'warning'))
+  }
+}
 
 const loginForm = reactive({
   agentKey: 'agent1001',
@@ -236,12 +279,8 @@ const clearMessages = () => {
 const startLocalRingback = () => {
   if (ringbackTimer) return
   try {
-    if (!ringbackCtx) {
-      ringbackCtx = new (window.AudioContext || window.webkitAudioContext)()
-    }
-    if (ringbackCtx.state === 'suspended') {
-      ringbackCtx.resume()
-    }
+    prepareRingtone()
+    if (!ringbackCtx) return
     ringbackActive = true
     const playTone = () => {
       if (!ringbackActive || !ringbackCtx) return
@@ -322,6 +361,7 @@ const handleConnect = async () => {
     return
   }
   connecting.value = true
+  prepareRingtone()
   try {
     // 1. 调用后台登录接口
     const res = await agentLogin({
@@ -360,6 +400,7 @@ const handleConnect = async () => {
 // 登出
 const handleLogout = () => {
   stopLocalRingback()
+  clearCallAudio()
   if (ringbackCtx) { ringbackCtx.close(); ringbackCtx = null }
   if (voxaiInstance) {
     voxaiInstance.logout()
@@ -428,59 +469,67 @@ const registerSip = (loginData) => {
     })
     sipUa.on('newRTCSession', (data) => {
       const session = data.session
-      if (data.originator === 'remote') {
-        // 来电：FS 通过 WebSocket 发来 INVITE
-        sipSession.value = session
-        addMessage('SIP', `来电: ${session.remote_identity.uri.user}`, 'warning')
-        if (isOutgoingCall.value) {
-          // 自己发起的外呼A-leg，自动接听
-          isOutgoingCall.value = false
-          session.answer({
-            mediaConstraints: { audio: true, video: false }
-          })
-        } else {
-          // 被叫B-leg，等待手动点击"应答"
-          callState.value = 'RINGING'
-        }
-      }
+      const boundConnections = new WeakSet()
       const bindRemoteAudio = (pc) => {
-        if (!pc) return
-        // 处理已存在的receivers
-        const receivers = pc.getReceivers()
-        if (receivers && receivers.length > 0) {
-          const stream = new MediaStream(receivers.map(r => r.track).filter(Boolean))
-          if (stream.getTracks().length > 0) {
-            const audio = document.getElementById('sipRemoteAudio')
-            audio.srcObject = stream
-            audio.play().catch(() => {})
-            addMessage('SIP', '远端音频已绑定')
-          }
-        }
-        // 处理未来的track
-        pc.ontrack = (ev) => {
+        if (!pc || boundConnections.has(pc)) return
+        boundConnections.add(pc)
+        const remoteStream = new MediaStream()
+        const attachTrack = (track) => {
+          if (!track || track.kind !== 'audio' || track.readyState === 'ended') return
+          if (!remoteStream.getTracks().includes(track)) remoteStream.addTrack(track)
           const audio = document.getElementById('sipRemoteAudio')
-          if (audio && ev.streams[0]) {
-            audio.srcObject = ev.streams[0]
-            audio.play().catch(() => {})
-            addMessage('SIP', 'ontrack远端音频已绑定')
-          }
+          if (!audio) return
+          if (audio.srcObject !== remoteStream) audio.srcObject = remoteStream
+          void playRemoteAudio()
+          addMessage('SIP', '远端音频已绑定')
         }
+        // 监听必须在 answer() 创建连接时安装，不能等 accepted 后再延迟绑定。
+        pc.addEventListener('track', event => attachTrack(event.track))
+        pc.getReceivers().forEach(receiver => attachTrack(receiver.track))
+        pc.addEventListener('iceconnectionstatechange', () => {
+          addMessage('SIP', `ICE: ${pc.iceConnectionState}`,
+            pc.iceConnectionState === 'failed' ? 'error' : 'info')
+        })
       }
-
+      session.on('peerconnection', ({ peerconnection }) => bindRemoteAudio(peerconnection))
+      bindRemoteAudio(session.connection)
+      session.on('getusermediafailed', error => {
+        addMessage('SIP', `麦克风不可用: ${error.name} ${error.message}`, 'error')
+        ElMessage.error('无法使用麦克风，请检查浏览器权限和输入设备')
+      })
       session.on('accepted', () => {
         stopLocalRingback()
         callState.value = 'TALKING'
         addMessage('SIP', '通话已建立')
-        // 通过session.connection获取PeerConnection绑定音频
-        setTimeout(() => bindRemoteAudio(session.connection), 100)
+        bindRemoteAudio(session.connection)
+        void playRemoteAudio()
+        if (mediaStatsTimer) clearInterval(mediaStatsTimer)
+        const pc = session.connection
+        let samples = 0
+        mediaStatsTimer = setInterval(async () => {
+          if (sipSession.value !== session || pc?.connectionState === 'closed' || !pc?.getStats) return
+          try {
+            const stats = await pc.getStats()
+            let sent = 0, received = 0
+            stats.forEach(report => {
+              if ((report.kind || report.mediaType) !== 'audio') return
+              if (report.type === 'inbound-rtp') received += report.bytesReceived || 0
+              if (report.type === 'outbound-rtp') sent += report.bytesSent || 0
+            })
+            const mic = pc.getSenders().find(sender => sender.track?.kind === 'audio')?.track
+            addMessage('SIP', `音频收发累计: 发送 ${sent} B / 接收 ${received} B；麦克风 ${mic?.readyState || '无音轨'}，启用 ${mic?.enabled ?? false}`)
+          } catch (error) {
+            addMessage('SIP', `音频统计失败: ${error.message}`, 'warning')
+          }
+          if (++samples >= 3) { clearInterval(mediaStatsTimer); mediaStatsTimer = null }
+        }, 5000)
       })
       session.on('ended', () => {
         stopLocalRingback()
         sipSession.value = null
         callState.value = ''
         isOutgoingCall.value = false
-        const audio = document.getElementById('sipRemoteAudio')
-        if (audio) audio.srcObject = null
+        clearCallAudio()
         addMessage('SIP', '通话结束')
       })
       session.on('failed', (e) => {
@@ -488,9 +537,22 @@ const registerSip = (loginData) => {
         sipSession.value = null
         callState.value = ''
         isOutgoingCall.value = false
+        clearCallAudio()
         addMessage('SIP', `通话失败: ${e.cause}`, 'error')
         addMessage('SIP', `失败详情: originator=${e.originator} message=${e.message}`, 'error')
       })
+      // 所有媒体和结束事件就绪后再应答，避免自动接听时漏掉 peerconnection。
+      if (data.originator === 'remote') {
+        sipSession.value = session
+        addMessage('SIP', `来电: ${session.remote_identity.uri.user}`, 'warning')
+        if (isOutgoingCall.value) {
+          isOutgoingCall.value = false
+          session.answer({ mediaConstraints: { audio: true, video: false } })
+        } else {
+          callState.value = 'RINGING'
+          startLocalRingback()
+        }
+      }
     })
 
     sipUa.start()
@@ -531,8 +593,7 @@ const handleMakeCall = async () => {
     sipSession.value = null
   }
   callState.value = ''
-  const audio = document.getElementById('sipRemoteAudio')
-  if (audio) { audio.srcObject = null }
+  clearCallAudio()
   if (voxaiInstance) {
     isOutgoingCall.value = true
     callState.value = 'CALLING'
@@ -556,10 +617,14 @@ const handleMakeCall = async () => {
 
 // 应答
 const handleAcceptCall = () => {
+  stopLocalRingback()
   if (sipSession.value) {
     sipSession.value.answer({
       mediaConstraints: { audio: true, video: false }
     })
+    // Retry an already attached stream in the click gesture. A new stream is
+    // attached only once an audio track arrives, rather than playing an empty stream.
+    void playRemoteAudio()
     addMessage('CMD', 'sipAnswer')
     return
   }
@@ -573,6 +638,7 @@ const handleAcceptCall = () => {
 // 挂机
 const handleHangup = () => {
   stopLocalRingback()
+  clearCallAudio()
   if (sipSession.value) {
     sipSession.value.terminate()
     sipSession.value = null
@@ -738,6 +804,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopLocalRingback()
+  clearCallAudio()
   if (ringbackCtx) { ringbackCtx.close(); ringbackCtx = null }
   if (voxaiInstance) {
     voxaiInstance.logout()
