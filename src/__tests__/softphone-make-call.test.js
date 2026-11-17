@@ -52,4 +52,33 @@ describe('softphone makeCall failures', () => {
     expect(wrapper.vm.callState).toBe('')
     expect(wrapper.vm.isOutgoingCall).toBe(false)
   })
+
+  it('sends the explicit inner-call type when calling a colleague', async () => {
+    sdk.makeCall.mockResolvedValue({ code: 0 })
+    wrapper.vm.phoneNum = '1002'
+    await wrapper.vm.handleMakeCall('INNER_CALL')
+    expect(sdk.makeCall).toHaveBeenCalledWith('1002', { callType: 'INNER_CALL' })
+    expect(wrapper.vm.isOutgoingCall).toBe(true)
+  })
+
+  it('shows callee state and restores the prior state after hangup', async () => {
+    const receive = sdk.addEventListener.mock.calls.find(([name]) => name === 'message')[1]
+    receive({ code: 0, type: 'IN_CALL_RING', data: { agentState: 'IN_CALL_RING' } })
+    expect(wrapper.vm.agentState).toBe('IN_CALL_RING')
+    expect(wrapper.vm.callState).toBe('IN_CALL_RING')
+    receive({ code: 0, type: 'TALKING', data: { agentState: 'TALKING' } })
+    expect(wrapper.vm.agentState).toBe('TALKING')
+    receive({ code: 0, type: 'AFTER', data: { agentState: 'READY' } })
+    expect(wrapper.vm.agentState).toBe('READY')
+    expect(wrapper.vm.callState).toBe('')
+    expect(wrapper.vm.isOutgoingCall).toBe(false)
+  })
+
+  it('clears talking status for a legacy hangup event without a state payload', () => {
+    const receive = sdk.addEventListener.mock.calls.find(([name]) => name === 'message')[1]
+    receive({ code: 0, type: 'TALKING', data: { agentState: 'TALKING' } })
+    receive({ code: 0, type: 'AFTER' })
+    expect(wrapper.vm.agentState).toBe('NOT_READY')
+    expect(wrapper.vm.callState).toBe('')
+  })
 })

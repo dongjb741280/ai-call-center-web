@@ -72,10 +72,11 @@
           <div class="call-section">
             <el-button v-if="audioPlaybackBlocked" type="warning" size="small" @click="retryCallAudio">启用通话声音</el-button>
             <div class="call-row">
-              <el-input v-model="phoneNum" placeholder="被叫号码" size="small" style="flex: 1" />
+              <el-input v-model="phoneNum" placeholder="被叫号码 / 坐席分机" size="small" style="flex: 1" />
               <el-button type="primary" @click="handleMakeCall" :disabled="!connected" size="small">
                 <el-icon><PhoneFilled /></el-icon> 外呼
               </el-button>
+              <el-button @click="handleMakeCall('INNER_CALL')" :disabled="!connected" size="small">内呼</el-button>
               <el-button type="success" @click="handleAcceptCall" :disabled="!connected" size="small">应答</el-button>
               <el-button type="danger" @click="handleHangup" :disabled="!connected" size="small">挂机</el-button>
             </div>
@@ -86,16 +87,20 @@
             <div class="call-row">
               <el-input v-model="consultNum" placeholder="咨询目标" size="small" style="flex: 1" />
               <el-button @click="handleConsult" :disabled="!connected" type="warning" size="small">咨询</el-button>
-              <el-button @click="handleConsultCancel" :disabled="!connected" type="danger" size="small" plain>
-                <el-icon><Close /></el-icon>
-              </el-button>
+              <el-tooltip content="取消咨询，挂断被咨询方并接回原通话" placement="top">
+                <el-button @click="handleConsultCancel" :disabled="!connected" type="danger" size="small" plain aria-label="取消咨询" title="取消咨询">
+                  <el-icon><Close /></el-icon>
+                </el-button>
+              </el-tooltip>
             </div>
             <div class="call-row">
               <el-input v-model="consultTransferNum" placeholder="咨询转接目标" size="small" style="flex: 1" />
               <el-button @click="handleConsultTransfer" :disabled="!connected" type="warning" size="small">咨询转</el-button>
-              <el-button @click="handleConsultParty" :disabled="!connected" type="success" size="small">
-                <el-icon><Connection /></el-icon>
-              </el-button>
+              <el-tooltip content="转三方通话：将原客户和被咨询方加入会议" placement="top">
+                <el-button @click="handleConsultParty" :disabled="!connected" type="success" size="small" aria-label="转三方通话" title="转三方通话">
+                  <el-icon><Connection /></el-icon>
+                </el-button>
+              </el-tooltip>
             </div>
             <el-divider />
             <div class="card-actions">
@@ -323,6 +328,10 @@ const initVoxai = (loginData) => {
       agentState.value = data.agentState || ''
       callState.value = data.callState || ''
     }
+    if (data.code === 0 && ['INNER_CALL', 'OUT_CALL', 'OUT_CALLER_RING', 'OUT_CALLED_RING', 'IN_CALL_RING', 'TALKING'].includes(data.type)) {
+      agentState.value = data.data?.agentState || data.type
+      callState.value = data.type
+    }
 
     // B-leg振铃时播放本地振铃音，接通/挂断后停止
     if (data.type === 'OUT_CALLED_RING') {
@@ -333,6 +342,8 @@ const initVoxai = (loginData) => {
     }
     if (data.agentState === 'AFTER' || data.type === 'AFTER') {
       callState.value = ''
+      agentState.value = data.data?.agentState || 'NOT_READY'
+      isOutgoingCall.value = false
     }
 
     addMessage('RECV', msg)
@@ -581,7 +592,7 @@ const handleReady = () => {
 }
 
 // 外呼
-const handleMakeCall = async () => {
+const handleMakeCall = async (callType) => {
   if (!phoneNum.value) {
     ElMessage.warning('请输入被叫号码')
     return
@@ -599,7 +610,9 @@ const handleMakeCall = async () => {
     callState.value = 'CALLING'
     addMessage('CMD', `makeCall: ${phoneNum.value}`)
     try {
-      const response = await voxaiInstance.makeCall(phoneNum.value)
+      const response = callType === 'INNER_CALL'
+        ? await voxaiInstance.makeCall(phoneNum.value, { callType: 'INNER_CALL' })
+        : await voxaiInstance.makeCall(phoneNum.value)
       addMessage('HTTP', `makeCall: ${JSON.stringify(response)}`)
       if (response?.code !== 0) {
         throw new Error(response?.message || '呼叫请求失败')
