@@ -94,22 +94,12 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { getCallMonitorList } from '@/api/config'
+import { formatCallTime as formatTime, formatCallDuration as fmtDur } from '@/utils/cdrTime'
 
 const loading = ref(false)
 const list = ref([])
 const searchForm = reactive({ caller: '', called: '', agentKey: '', timeRange: null })
 const pagination = reactive({ currentPage: 1, pageSize: 10, total: 0 })
-
-const formatTime = (ts) => {
-  if (!ts) return '-'
-  return new Date(ts * 1000).toLocaleString('zh-CN', { hour12: false })
-}
-const fmtDur = (sec) => {
-  if (!sec) return '00:00'
-  const m = Math.floor(sec / 60)
-  const s = sec % 60
-  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-}
 
 const loadData = async () => {
   loading.value = true
@@ -119,8 +109,8 @@ const loadData = async () => {
     if (searchForm.called) query.called = searchForm.called
     if (searchForm.agentKey) query.agentKey = searchForm.agentKey
     if (searchForm.timeRange && searchForm.timeRange.length === 2) {
-      query.start = Math.floor(searchForm.timeRange[0] / 1000)
-      query.end = Math.floor(searchForm.timeRange[1] / 1000)
+      query.start = Number(searchForm.timeRange[0])
+      query.end = Number(searchForm.timeRange[1])
     }
     const params = { pageNum: pagination.currentPage, pageSize: pagination.pageSize,
       query: JSON.stringify(query) }

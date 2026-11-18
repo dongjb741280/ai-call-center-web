@@ -513,6 +513,9 @@ export const getAgentMonitorList = (params) => {
 export const getCallMonitorList = (params) => {
   return request({ url: '/voxai-admin/config/callMonitor', method: 'get', params })
 }
+export const getCallRecordingUrl = (callId) => {
+  return request({ url: `/voxai-admin/config/callRecording/${callId}`, method: 'get' })
+}
 export const getCallDeviceList = (callId) => {
   return request({ url: `/voxai-admin/config/callDevice/${callId}`, method: 'get' })
 }

@@ -93,9 +93,10 @@
     <el-dialog v-model="audioVisible" title="录音播放" width="400px" @close="stopAudio">
       <div class="audio-player">
         <p class="audio-callid">callId: {{ audioCallId }}</p>
-        <audio ref="audioRef" controls autoplay style="width:100%">
-          <source :src="audioSrc" type="audio/wav" />
-        </audio>
+        <p v-if="audioLoading">录音加载中…</p>
+        <el-alert v-if="audioError" :title="audioError" type="error" :closable="false" />
+        <audio v-if="audioSrc" :key="audioSrc" ref="audioRef" :src="audioSrc"
+          controls autoplay preload="metadata" style="width:100%" @error="audioError = '录音加载失败，请重新打开后重试'" />
       </div>
       <template #footer>
         <el-button @click="stopAudio">关闭</el-button>
@@ -224,9 +225,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { getCallMonitorList, getCallDeviceList, getCallDetailList, getIvrFlowList } from '@/api/config'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { getCallMonitorList, getCallDeviceList, getCallDetailList, getIvrFlowList, getCallRecordingUrl } from '@/api/config'
 import { VideoPlay } from '@element-plus/icons-vue'
+import { formatCallTime as formatTime, formatCallDuration as fmtDur } from '@/utils/cdrTime'
 
 const loading = ref(false)
 const list = ref([])
@@ -236,6 +238,9 @@ const audioVisible = ref(false)
 const audioSrc = ref('')
 const audioCallId = ref('')
 const audioRef = ref(null)
+const audioLoading = ref(false)
+const audioError = ref('')
+let recordingRequest = 0
 const detailVisible = ref(false)
 const activeTab = ref('basic')
 const detail = reactive({})
@@ -248,15 +253,34 @@ const ivrFlowLoading = ref(false)
 
 const transferTypeLabel = (t) => ({ 1: '路由', 2: '桥接', 3: '转接', 4: '咨询', 5: '会议' }[t] || t)
 
-const playRecording = (row) => {
+const playRecording = async (row) => {
+  const request = ++recordingRequest
+  if (audioRef.value) audioRef.value.pause()
   audioCallId.value = row.callId
-  audioSrc.value = row.record
+  audioSrc.value = ''
+  audioError.value = ''
+  audioLoading.value = true
   audioVisible.value = true
+  try {
+    const res = await getCallRecordingUrl(row.callId)
+    if (request !== recordingRequest || !audioVisible.value) return
+    if (res.code === 0 && res.data) audioSrc.value = res.data
+    else audioError.value = res.message || '录音文件暂不可用'
+  } catch {
+    if (request === recordingRequest) audioError.value = '获取录音失败，请稍后重试'
+  } finally {
+    if (request === recordingRequest) audioLoading.value = false
+  }
 }
 const stopAudio = () => {
+  ++recordingRequest
   if (audioRef.value) { audioRef.value.pause(); audioRef.value.currentTime = 0 }
+  audioSrc.value = ''
+  audioError.value = ''
+  audioLoading.value = false
   audioVisible.value = false
 }
+onBeforeUnmount(stopAudio)
 
 const handleDetail = async (row) => {
   Object.assign(detail, row)
@@ -284,17 +308,6 @@ const callResult = (row) => {
   return '-'
 }
 
-const formatTime = (ts) => {
-  if (!ts) return '-'
-  return new Date(ts * 1000).toLocaleString('zh-CN', { hour12: false })
-}
-const fmtDur = (sec) => {
-  if (!sec) return '00:00'
-  const m = Math.floor(sec / 60)
-  const s = sec % 60
-  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-}
-
 const loadData = async () => {
   loading.value = true
   try {
@@ -302,8 +315,8 @@ const loadData = async () => {
     if (searchForm.callId) query.callId = searchForm.callId
     if (searchForm.called) query.called = searchForm.called
     if (searchForm.timeRange && searchForm.timeRange.length === 2) {
-      query.start = Math.floor(searchForm.timeRange[0] / 1000)
-      query.end = Math.floor(searchForm.timeRange[1] / 1000)
+      query.start = Number(searchForm.timeRange[0])
+      query.end = Number(searchForm.timeRange[1])
     }
     const params = { pageNum: pagination.currentPage, pageSize: pagination.pageSize,
       query: JSON.stringify(query) }
