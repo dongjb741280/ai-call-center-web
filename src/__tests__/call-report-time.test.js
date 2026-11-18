@@ -60,6 +60,9 @@ describe.each([
 ])('%s的毫秒话单', (_name, component) => {
   it('按毫秒显示拨打、应答、结束时间以及通话和录音时长', async () => {
     await open(component)
+    if (component === InboundReport) {
+      expect(JSON.parse(api.getCallMonitorList.mock.lastCall[0].query).direction).toBe('INBOUND')
+    }
     const table = wrapper.find('.el-table')
     expect(columnText(table, '拨打时间')).toBe(displayTime(callTime))
     expect(columnText(table, '应答时间')).toBe(displayTime(answerTime))
@@ -103,9 +106,12 @@ it.each([null, 0, '0', -1, 'invalid'])('空值或无效的外呼时间显示占�
   expect(columnText(wrapper.find('.el-table'), '拨打时间')).toBe('-')
 })
 
-it('外呼详情、设备、呼叫流程和IVR流程均按毫秒显示', async () => {
-  await open(OutboundReport)
+it.each([OutboundReport, InboundReport])('话单详情、设备、呼叫流程和IVR流程均按毫秒显示：%s', async component => {
+  await open(component)
   await click('详情')
+  expect(api.getCallDeviceList).toHaveBeenCalledWith(call.callId)
+  expect(api.getCallDetailList).toHaveBeenCalledWith(call.callId)
+  expect(api.getIvrFlowList).toHaveBeenCalledWith(call.callId)
   const basic = wrapper.find('.el-descriptions')
   expect(basic.text()).toContain(displayTime(callTime))
   expect(basic.text()).toContain(displayTime(answerTime))
@@ -122,14 +128,38 @@ it('外呼详情、设备、呼叫流程和IVR流程均按毫秒显示', async (
   }
 })
 
-describe('外呼录音播放', () => {
+it('呼入详情的单个接口失败时保留其他详情并显示失败提示', async () => {
+  api.getCallDeviceList.mockRejectedValueOnce(new Error('network'))
+  await open(InboundReport)
+  await click('详情')
+  expect(wrapper.text()).toContain('设备明细加载失败，请重试')
+  const flow = wrapper.findAll('.el-table')[1]
+  expect(columnText(flow, '开始时间')).toBe(displayTime(callTime))
+})
+
+it('快速切换呼入话单时清理旧字段，并忽略上一条未完成的详情请求', async () => {
+  api.getCallMonitorList.mockResolvedValue({ code: 0, data: { list: [{ ...call, agentName: '旧坐席' }, { callId: 'second-call' }], total: 2 } })
+  let resolveDevices
+  api.getCallDeviceList.mockReturnValueOnce(new Promise(resolve => { resolveDevices = resolve }))
+    .mockResolvedValueOnce({ code: 0, data: [] })
+  await open(InboundReport)
+  await click('详情')
+  await wrapper.findAll('button').filter(button => button.text() === '详情')[1].trigger('click')
+  await flushPromises()
+  expect(wrapper.find('.el-descriptions').text()).not.toContain('旧坐席')
+  resolveDevices({ code: 0, data: [{ ...call, deviceId: 'stale-device' }] })
+  await flushPromises()
+  expect(wrapper.find('.device-card').exists()).toBe(false)
+})
+
+describe.each([['外呼', OutboundReport], ['呼入', InboundReport]])('%s录音播放', (_name, component) => {
   const recordingCall = { ...call, record: '/cc-record/test.wav' }
   beforeEach(() => {
     api.getCallMonitorList.mockResolvedValue({ code: 0, data: { list: [recordingCall], total: 1 } })
   })
 
   it('通过话单ID取得临时地址，并直接绑定到音频元素', async () => {
-    await open(OutboundReport)
+    await open(component)
     await click('播放')
     expect(api.getCallRecordingUrl).toHaveBeenCalledWith(call.callId)
     expect(wrapper.find('audio').attributes('src')).toBe('http://localhost:9000/cc-record/test.wav?signature=test')
@@ -140,7 +170,7 @@ describe('外呼录音播放', () => {
     api.getCallMonitorList.mockResolvedValue({ code: 0, data: { list: [recordingCall, { ...recordingCall, callId: 'second-call' }], total: 2 } })
     api.getCallRecordingUrl.mockResolvedValueOnce({ code: 0, data: 'http://localhost:9000/cc-record/first.wav?signed=1' })
       .mockResolvedValueOnce({ code: 0, data: 'http://localhost:9000/cc-record/second.wav?signed=2' })
-    await open(OutboundReport)
+    await open(component)
     await click('播放')
     const first = wrapper.find('audio').element
     await wrapper.findAll('button').filter(button => button.text() === '播放')[1].trigger('click')
@@ -154,7 +184,7 @@ describe('外呼录音播放', () => {
 
   it('文件不可用时显示明确提示，不挂载空播放器', async () => {
     api.getCallRecordingUrl.mockResolvedValue({ code: 1106, message: '录音文件暂不可用' })
-    await open(OutboundReport)
+    await open(component)
     await click('播放')
     expect(wrapper.text()).toContain('录音文件暂不可用')
     expect(wrapper.find('audio').exists()).toBe(false)
@@ -162,7 +192,7 @@ describe('外呼录音播放', () => {
 
   it('请求失败及媒体加载失败时显示提示', async () => {
     api.getCallRecordingUrl.mockRejectedValueOnce(new Error('network'))
-    await open(OutboundReport)
+    await open(component)
     await click('播放')
     expect(wrapper.text()).toContain('获取录音失败，请稍后重试')
     await click('播放')
@@ -173,11 +203,18 @@ describe('外呼录音播放', () => {
   it('关闭后忽略尚未完成的播放地址请求', async () => {
     let resolveUrl
     api.getCallRecordingUrl.mockReturnValue(new Promise(resolve => { resolveUrl = resolve }))
-    await open(OutboundReport)
+    await open(component)
     await click('播放')
     await click('关闭')
     resolveUrl({ code: 0, data: 'http://localhost:9000/cc-record/late.wav?signed=1' })
     await flushPromises()
     expect(wrapper.find('audio').exists()).toBe(false)
+  })
+
+  it('没有录音地址时明确显示无录音', async () => {
+    api.getCallMonitorList.mockResolvedValue({ code: 0, data: { list: [call], total: 1 } })
+    await open(component)
+    expect(columnText(wrapper.find('.el-table'), '录音')).toBe('无录音')
+    expect(wrapper.findAll('button').some(button => button.text() === '播放')).toBe(false)
   })
 })

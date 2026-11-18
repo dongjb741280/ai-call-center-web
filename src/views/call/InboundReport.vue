@@ -73,10 +73,17 @@
         <el-table-column label="录音时长" width="90" align="center">
           <template #default="{ row }">{{ fmtDur(row.recordTime) }}</template>
         </el-table-column>
-        <el-table-column prop="record" label="录音" width="120" show-overflow-tooltip />
+        <el-table-column label="录音" width="90" align="center">
+          <template #default="{ row }">
+            <el-button v-if="row.record" size="small" type="primary" link @click="reportDialogs.playRecording(row)">
+              <el-icon><VideoPlay /></el-icon>播放
+            </el-button>
+            <span v-else>无录音</span>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="80" fixed="right" align="center">
-          <template #default>
-            <el-button size="small" type="primary" link>详情</el-button>
+          <template #default="{ row }">
+            <el-button size="small" type="primary" link @click="reportDialogs.handleDetail(row)">详情</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -88,23 +95,27 @@
         layout="total, sizes, prev, pager, next, jumper"
         @size-change="handleSizeChange" @current-change="handleCurrentChange" />
     </div>
+    <CallReportDialogs ref="reportDialogs" />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { getCallMonitorList } from '@/api/config'
+import CallReportDialogs from '@/components/CallReportDialogs.vue'
+import { VideoPlay } from '@element-plus/icons-vue'
 import { formatCallTime as formatTime, formatCallDuration as fmtDur } from '@/utils/cdrTime'
 
 const loading = ref(false)
 const list = ref([])
 const searchForm = reactive({ caller: '', called: '', agentKey: '', timeRange: null })
 const pagination = reactive({ currentPage: 1, pageSize: 10, total: 0 })
+const reportDialogs = ref(null)
 
 const loadData = async () => {
   loading.value = true
   try {
-    const query = { direction: 'inbound' }
+    const query = { direction: 'INBOUND' }
     if (searchForm.caller) query.caller = searchForm.caller
     if (searchForm.called) query.called = searchForm.called
     if (searchForm.agentKey) query.agentKey = searchForm.agentKey
