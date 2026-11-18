@@ -73,10 +73,10 @@
             <el-button v-if="audioPlaybackBlocked" type="warning" size="small" @click="retryCallAudio">启用通话声音</el-button>
             <div class="call-row">
               <el-input v-model="phoneNum" placeholder="被叫号码 / 坐席分机" size="small" style="flex: 1" />
-              <el-button type="primary" @click="handleMakeCall" :disabled="!connected" size="small">
+              <el-button type="primary" @click="handleMakeCall" :disabled="!canMakeCall" size="small">
                 <el-icon><PhoneFilled /></el-icon> 外呼
               </el-button>
-              <el-button @click="handleMakeCall('INNER_CALL')" :disabled="!connected" size="small">内呼</el-button>
+              <el-button @click="handleMakeCall('INNER_CALL')" :disabled="!canMakeCall" size="small">内呼</el-button>
               <el-button type="success" @click="handleAcceptCall" :disabled="!connected" size="small">应答</el-button>
               <el-button type="danger" @click="handleHangup" :disabled="!connected" size="small">挂机</el-button>
             </div>
@@ -155,7 +155,7 @@
 </template>
 
 <script setup>
-import { ref, shallowRef, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, shallowRef, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { agentLogin } from '@/api/softphone'
 import { getAgentConfigList, getStationList } from '@/api/config'
@@ -165,6 +165,7 @@ import CallSdk from '@/utils/callSdk'
 const connecting = ref(false)
 const connected = ref(false)
 const agentState = ref('')
+const canMakeCall = computed(() => connected.value && ['READY', 'NOT_READY'].includes(agentState.value))
 const callState = ref('')
 const phoneNum = ref('1005')
 const transferNum = ref('1005')
@@ -577,7 +578,7 @@ const registerSip = (loginData) => {
 const handleBusy = () => {
   if (voxaiInstance) {
     voxaiInstance.setBusy()
-    agentState.value = 'BUSY'
+    agentState.value = 'NOT_READY'
     addMessage('CMD', 'setBusy')
   }
 }
@@ -593,6 +594,10 @@ const handleReady = () => {
 
 // 外呼
 const handleMakeCall = async (callType) => {
+  if (!canMakeCall.value) {
+    ElMessage.warning('请先将坐席切换为空闲或忙碌')
+    return
+  }
   if (!phoneNum.value) {
     ElMessage.warning('请输入被叫号码')
     return

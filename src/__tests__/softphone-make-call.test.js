@@ -21,11 +21,13 @@ describe('softphone makeCall failures', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.spyOn(ElMessage, 'success').mockImplementation(() => {})
+    vi.spyOn(ElMessage, 'warning').mockImplementation(() => {})
     vi.spyOn(ElMessage, 'error').mockImplementation(() => {})
     wrapper = shallowMount(SoftPhone)
     wrapper.vm.loginForm.loginType = 3
     await wrapper.vm.handleConnect()
     await flushPromises()
+    wrapper.vm.agentState = 'READY'
   })
   afterEach(() => { wrapper.unmount(); vi.restoreAllMocks() })
 
@@ -59,6 +61,14 @@ describe('softphone makeCall failures', () => {
     await wrapper.vm.handleMakeCall('INNER_CALL')
     expect(sdk.makeCall).toHaveBeenCalledWith('1002', { callType: 'INNER_CALL' })
     expect(wrapper.vm.isOutgoingCall).toBe(true)
+  })
+
+  it('does not send an inner call before the agent is ready or not ready', async () => {
+    wrapper.vm.agentState = 'LOGIN'
+    await wrapper.vm.handleMakeCall('INNER_CALL')
+    expect(sdk.makeCall).not.toHaveBeenCalled()
+    expect(ElMessage.warning).toHaveBeenCalledWith('请先将坐席切换为空闲或忙碌')
+    expect(wrapper.vm.canMakeCall).toBe(false)
   })
 
   it('shows callee state and restores the prior state after hangup', async () => {
